@@ -24,15 +24,20 @@ REMAX Hub's booking layer: a self-hosted Cal.diy fork. Leads never use Cal's own
 2. Security: webhook `teamId` planting (CVE-2026-16624), ownerless-webhook edit/delete, permission stubs deny instead of allow, `SameSite=lax` cookies and no OAuth-state exemptions (CVE-2026-9303).
 3. Next.js 16.3.7, next-auth 4.24.15, Node 22 images.
 4. Build args for signup-off and REMAX Hub branding (`NEXT_PUBLIC_*` are baked in at build time).
+5. `REMAXHUB_ENABLED_APPS` (seed-app-store keeps only these apps enabled; cron guard as backup).
+6. Restriction schedules apply to slots (upstream hard-disabled them), and slot filtering is DST-safe (epoch-ms comparisons; UTC date stepping).
+7. `REMAXHUB_ORGANIZER_ICS=off`: emails to the host carry no .ics. Zoho Mail imported it, duplicating the Zoho event and leaving stale copies after reschedules and cancellations.
 
 ## Deploy a new image
 
-1. Push to `remaxhub` (or run the workflow). Wait for both jobs to go green.
-2. `ssh root@100.108.208.27 'docker exec postgres-<uuid> pg_dump -U calcom -d calcom -Fc' > before-upgrade.dump`, or run `/usr/local/bin/caldiy-backup.sh`.
-3. Set `IMAGE_TAG` in the service's Coolify env (API: `PATCH /services/<uuid>/envs`), then deploy. If Coolify's restart fails with "No such container", run `docker compose -p <uuid> up -d` in `/data/coolify/services/<uuid>`.
-4. Smoke test: `GET https://book-api.remaxhub.ae/v2/slots?...` returns slots, one booking by API, cancel it, check the webhook arrived at Hub Admin.
+1. Push to `remaxhub` (or run the workflow). Wait for both jobs to go green. Tag = `sha-<first 10 chars of the commit>`.
+2. Back up: `ssh root@100.108.208.27 'CALDIY_SERVICE_UUID=on6gp9ggl5b33kc1uutzwkkd /usr/local/bin/caldiy-backup.sh'`.
+3. **Pre-pull on the box first**: `docker pull ghcr.io/myi1/caldiy-web:<tag> && docker pull ghcr.io/myi1/caldiy-api:<tag>`. Coolify deletes unused images when it stops the stack, and the web image is ~1.2 GB, so pulling after the stop meant ~10 min of downtime on 29 Sep.
+4. Push the compose and tag through the Coolify API: explode the YAML anchors (`yq --yaml-fix-merge-anchor-to-spec=true 'explode(.) | del(."x-cal-common")' deploy/remaxhub/docker-compose.yml`), then `PATCH /services/<uuid>` with `docker_compose_raw` (base64) **and** `urls` (web → `https://book.remaxhub.ae:3000`, api → `https://book-api.remaxhub.ae:80`), and `PATCH /services/<uuid>/envs {"key":"IMAGE_TAG","value":"<tag>"}`.
+5. `GET /services/<uuid>/restart` makes Coolify rewrite `/data/coolify/services/<uuid>/{docker-compose.yml,.env}`. **Coolify's restart removes the containers and doesn't start them** (every time so far). Once `.env` shows the new tag, run `cd /data/coolify/services/<uuid> && docker compose -p <uuid> up -d`.
+6. Check: the containers are on the new tag, web is healthy, `select count(*) from users` is unchanged, only `zohocalendar` is enabled in `"App"`, and a slots request answers.
 
-Rollback: set `IMAGE_TAG` back to the previous tag. Restore the dump only if the new version ran a database migration that the old one can't read.
+Rollback: set `IMAGE_TAG` back to the previous tag and repeat 3–6. Restore the dump only if the new version ran a database migration that the old one can't read.
 
 ## Upgrading from upstream
 

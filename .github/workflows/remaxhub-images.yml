@@ -78,3 +78,8 @@ jobs:
             NEXT_PUBLIC_LICENSE_CONSENT=agree
             NEXT_PUBLIC_WEBSITE_PRIVACY_POLICY_URL=https://remaxhub.ae/privacy-policy
             CALCOM_TELEMETRY_DISABLED=1
+            NEXT_PUBLIC_DISABLE_SIGNUP=true
+            NEXT_PUBLIC_APP_NAME=REMAX Hub
+            NEXT_PUBLIC_COMPANY_NAME=REMAX Hub
+            NEXT_PUBLIC_SUPPORT_MAIL_ADDRESS=hub@remax.ae
+            NEXT_PUBLIC_WEBSITE_URL=https://remaxhub.ae

@@ -3,7 +3,9 @@ import process from "node:process";
 import type { NextApiRequest } from "next";
 import type { IntegrationOAuthCallbackState } from "../../types";
 
-const NONCE_EXEMPT_APPS = new Set(["stripe", "basecamp3", "dub", "webex", "tandem"]);
+// remaxhub (CVE-2026-9303): the exempt apps accepted any state, so a crafted callback could link an
+// attacker's account to a victim's session. We only enable Zoho Calendar; nothing is exempt.
+const NONCE_EXEMPT_APPS = new Set<string>([]);
 
 export function decodeOAuthState(req: NextApiRequest, appSlug?: string) {
   if (typeof req.query.state !== "string") {

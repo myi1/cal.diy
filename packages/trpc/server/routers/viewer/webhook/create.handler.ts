@@ -30,6 +30,12 @@ export const createHandler = async ({ ctx, input }: CreateOptions) => {
     });
   }
 
+  // remaxhub (CVE-2026-16624): the caller's ownership of `teamId` is never checked, so a user could
+  // plant a webhook on another team's bookings. We have no teams; only system admins may set it.
+  if (input.teamId && user.role !== "ADMIN") {
+    throw new TRPCError({ code: "FORBIDDEN" });
+  }
+
   const { webhookId: _webhookId, ...inputWithoutWebhookId } = input;
   const webhookData: Prisma.WebhookCreateInput = {
     id: v4(),

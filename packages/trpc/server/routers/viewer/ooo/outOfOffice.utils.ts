@@ -1,10 +1,11 @@
 import prisma from "@calcom/prisma";
 import { MembershipRole } from "@calcom/prisma/enums";
 
+// remaxhub: upstream stubbed this to allow everything; we run with no teams/orgs, so deny.
 class PermissionCheckService {
   constructor(_prisma?: unknown) {}
-  async checkPermission(..._args: unknown[]) { return true; }
-  async hasPermission(..._args: unknown[]) { return true; }
+  async checkPermission(..._args: unknown[]) { return false; }
+  async hasPermission(..._args: unknown[]) { return false; }
   async getTeamIdsWithPermission(..._args: unknown[]): Promise<number[]> { return []; }
 }
 

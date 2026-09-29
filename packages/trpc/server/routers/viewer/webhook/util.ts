@@ -20,6 +20,7 @@ export const createWebhookProcedure = () => {
           id: true,
           userId: true,
           eventTypeId: true,
+          teamId: true,
         },
       });
 
@@ -45,6 +46,10 @@ export const createWebhookProcedure = () => {
           throw new TRPCError({ code: "FORBIDDEN" });
         }
       } else if (webhook.userId && webhook.userId !== ctx.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      } else if (!webhook.userId && ctx.user.role !== "ADMIN") {
+        // remaxhub (cal.com#29982): team/platform webhooks have no userId and would otherwise pass
+        // unchecked, letting any user edit or delete them. Only system admins may touch those.
         throw new TRPCError({ code: "FORBIDDEN" });
       }
     } else if (eventTypeId) {

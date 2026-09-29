@@ -15,10 +15,11 @@ import { MembershipRole, SchedulingType } from "@calcom/prisma/enums";
 import { eventTypeMetaDataSchemaWithUntypedApps, teamMetadataSchema } from "@calcom/prisma/zod-utils";
 import { orderBy } from "lodash";
 
+// remaxhub: upstream stubbed this to allow everything; we run with no teams/orgs, so deny.
 class PermissionCheckService {
   constructor(_prisma?: unknown) {}
-  async checkPermission(..._args: unknown[]) { return true; }
-  async hasPermission(..._args: unknown[]) { return true; }
+  async checkPermission(..._args: unknown[]) { return false; }
+  async hasPermission(..._args: unknown[]) { return false; }
   async getTeamIdsWithPermission(..._args: unknown[]): Promise<number[]> { return []; }
 }
 const getBookerBaseUrl = async (_orgSlug?: string | number | null): Promise<string> =>

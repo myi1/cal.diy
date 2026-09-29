@@ -12,10 +12,11 @@ import authedProcedure from "../../../procedures/authedProcedure";
 import type { TUpdateInputSchema } from "./types";
 
 type PermissionString = string;
+// remaxhub: upstream stubbed this to allow everything; we run with no teams/orgs, so deny.
 class PermissionCheckService {
   constructor(_prisma?: unknown) {}
-  async checkPermission(..._args: unknown[]) { return true; }
-  async hasPermission(..._args: unknown[]) { return true; }
+  async checkPermission(..._args: unknown[]) { return false; }
+  async hasPermission(..._args: unknown[]) { return false; }
   async getTeamIdsWithPermission(..._args: unknown[]): Promise<number[]> { return []; }
 }
 

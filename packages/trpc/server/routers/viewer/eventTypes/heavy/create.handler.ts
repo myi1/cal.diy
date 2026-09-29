@@ -10,10 +10,11 @@ import type { z } from "zod";
 import type { TrpcSessionUser } from "../../../../types";
 import type { TCreateInputSchema } from "./create.schema";
 
+// remaxhub: upstream stubbed this to allow everything; we run with no teams/orgs, so deny.
 class PermissionCheckService {
   constructor(_prisma?: unknown) {}
-  async checkPermission(..._args: unknown[]) { return true; }
-  async hasPermission(..._args: unknown[]) { return true; }
+  async checkPermission(..._args: unknown[]) { return false; }
+  async hasPermission(..._args: unknown[]) { return false; }
   async getTeamIdsWithPermission(..._args: unknown[]): Promise<number[]> { return []; }
 }
 

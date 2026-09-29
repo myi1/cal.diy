@@ -8,13 +8,14 @@ import type { TrpcSessionUser } from "@calcom/trpc/server/types";
 import type { Session } from "next-auth";
 import type { TGetInputSchema } from "./get.schema";
 
+// remaxhub: upstream stubbed this to allow everything; we run with no teams/orgs, so deny.
 class PermissionCheckService {
   constructor(_prisma?: unknown) {}
   async checkPermission(..._args: unknown[]) {
-    return true;
+    return false;
   }
   async hasPermission(..._args: unknown[]) {
-    return true;
+    return false;
   }
   async getTeamIdsWithPermission(..._args: unknown[]): Promise<number[]> {
     return [];

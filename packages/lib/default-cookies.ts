@@ -22,7 +22,9 @@ export function defaultCookies(useSecureCookies: boolean): CookiesOptions {
     // To enable cookies on widgets,
     // https://stackoverflow.com/questions/45094712/iframe-not-reading-cookies-in-chrome
     // But we need to set it as `lax` in development
-    sameSite: useSecureCookies ? "none" : "lax",
+    // remaxhub (CVE-2026-9303): "none" lets cross-site forms ride the session (e.g. a text/plain POST to
+    // /api/availability/calendar). We don't embed Cal in third-party iframes, so always use "lax".
+    sameSite: "lax",
     path: "/",
     secure: useSecureCookies,
   };

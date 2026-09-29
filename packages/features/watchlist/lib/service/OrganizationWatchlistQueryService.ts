@@ -3,10 +3,11 @@ import type { WatchlistRepository } from "@calcom/features/watchlist/lib/reposit
 import { MembershipRole, type WatchlistSource, type WatchlistType } from "@calcom/prisma/enums";
 import { WatchlistErrors } from "../errors/WatchlistErrors";
 
+// remaxhub: upstream stubbed this to allow everything; we run with no teams/orgs, so deny.
 class PermissionCheckService {
   constructor(_prisma?: unknown) {}
-  async checkPermission(..._args: unknown[]) { return true; }
-  async hasPermission(..._args: unknown[]) { return true; }
+  async checkPermission(..._args: unknown[]) { return false; }
+  async hasPermission(..._args: unknown[]) { return false; }
   async getTeamIdsWithPermission(..._args: unknown[]): Promise<number[]> { return []; }
 }
 

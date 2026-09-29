@@ -23,9 +23,11 @@ class ZohoCalendarService implements Calendar {
   private integrationName = "";
   private log: typeof logger;
   auth: { getToken: () => Promise<ZohoAuthCredentials> };
+  private userEmail: string;
 
   constructor(credential: CredentialPayload) {
     this.integrationName = "zoho_calendar";
+    this.userEmail = credential.user?.email ?? `credential:${credential.id}`;
     this.auth = this.zohoAuth(credential);
     this.log = logger.getSubLogger({
       prefix: [`[[lib] ${this.integrationName}`],
@@ -224,7 +226,9 @@ class ZohoCalendarService implements Calendar {
       const existingEventResponse = await this.fetcher(`/calendars/${calendarId}/events/${uid}`);
       const existingEventData = await this.handleData(existingEventResponse, this.log);
 
-      const response = await this.fetcher(`/calendars/${calendarId}/events/${uid}`, {
+      // notify_attendee=0: Cal.diy already emails the attendee; don't let Zoho send its own notice (cal.com#29592)
+      const query = stringify({ eventdata: JSON.stringify({ notify_attendee: 0 }) });
+      const response = await this.fetcher(`/calendars/${calendarId}/events/${uid}?${query}`, {
         method: "DELETE",
         headers: {
           etag: existingEventData.events[0].etag,
@@ -395,8 +399,11 @@ class ZohoCalendarService implements Calendar {
         return busyData;
       }
     } catch (error) {
-      this.log.error(error);
-      return [];
+      // Fail closed: if Zoho can't be read (expired/revoked token, API error), treat the whole
+      // range as busy so no slot is offered on top of an event we couldn't see.
+      const err = error instanceof Error ? error.message : JSON.stringify(error);
+      this.log.error(`zoho_freebusy_failed user=${this.userEmail} err=${err}`);
+      return [{ start: dayjs(dateFrom).toISOString(), end: dayjs(dateTo).toISOString() }];
     }
   }
 
@@ -467,6 +474,8 @@ class ZohoCalendarService implements Calendar {
       },
       attendees: event.attendees.map((attendee) => ({ email: attendee.email })),
       isprivate: event.hideCalendarEventDetails ?? false,
+      // 0 = don't notify attendees: Cal.diy already sends the confirmation (cal.com#29592)
+      notify_attendee: 0,
       reminders: [
         {
           minutes: "-15",

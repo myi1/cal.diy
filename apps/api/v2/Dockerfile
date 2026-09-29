@@ -6,7 +6,7 @@ ARG DATABASE_URL
 WORKDIR /calcom
 
 RUN set -eux;
-RUN ln -s /usr/lib/libssl.so.3 /lib/libssl.so.3
+RUN if [ -e /usr/lib/libssl.so.3 ] && [ ! -e /lib/libssl.so.3 ]; then ln -s /usr/lib/libssl.so.3 /lib/libssl.so.3; fi
 
 ENV NODE_ENV="production"
 ENV NODE_OPTIONS="--max-old-space-size=8192"

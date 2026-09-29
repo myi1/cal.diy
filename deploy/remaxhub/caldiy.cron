@@ -12,3 +12,6 @@ CALDIY_SERVICE_UUID=__SERVICE_UUID__
 
 # Nightly database backup, 23:30 UTC (03:30 Dubai), after the CMS backup at 23:15.
 30 23 * * * root /usr/local/bin/caldiy-backup.sh
+
+# Daily 05:00 UTC (09:00 Dubai): email when a desk advisor's weekly call hours drop. Recipients in /etc/caldiy-hours-watch.env.
+0 5 * * * root /usr/local/bin/caldiy-hours-watch.py >> /var/log/caldiy-hours-watch.log 2>&1

@@ -853,8 +853,11 @@ export class AvailableSlotsService {
     };
   }
 
+  // remaxhub: upstream hard-disabled this, yet ensureAvailableUsers still enforces restriction schedules at
+  // booking time, so slots were offered that booking then rejected. We use a restriction schedule to keep
+  // every call inside the UK window whatever hours an advisor sets, so it must apply to slots too.
   private async checkRestrictionScheduleEnabled(_teamId?: number): Promise<boolean> {
-    return false;
+    return true;
   }
 
   private async resolveOrganizationIdForBlocking(_args: {

@@ -20,6 +20,9 @@ export default class OrganizerScheduledEmail extends BaseEmail {
   teamMember?: Person;
   reassigned?: Reassigned;
   attendee?: Person;
+  // remaxhub: Zoho Mail auto-imports an attached invite into the host's calendar, duplicating the event
+  // the calendar integration already wrote (and leaving stale copies on reschedule/cancel).
+  protected omitIcalEvent = process.env.REMAXHUB_ORGANIZER_ICS === "off";
 
   constructor(input: {
     calEvent: CalendarEvent;

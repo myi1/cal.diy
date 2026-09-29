@@ -25,6 +25,8 @@ x-cal-common: &cal-common
   EMAIL_SERVER_PORT: "465"
   EMAIL_SERVER_USER: ${EMAIL_SERVER_USER}
   EMAIL_SERVER_PASSWORD: ${EMAIL_SERVER_PASSWORD}
+  # Emails to advisors go without the .ics: Zoho Mail would import it and duplicate the Zoho event Cal writes.
+  REMAXHUB_ORGANIZER_ICS: "off"
 services:
   web:
     image: ghcr.io/myi1/caldiy-web:${IMAGE_TAG}

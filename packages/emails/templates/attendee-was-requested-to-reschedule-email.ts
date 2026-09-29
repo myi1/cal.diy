@@ -7,6 +7,8 @@ import renderEmail from "../src/renderEmail";
 import OrganizerScheduledEmail from "./organizer-scheduled-email";
 
 export default class AttendeeWasRequestedToRescheduleEmail extends OrganizerScheduledEmail {
+  // Sent to the attendee, so it keeps its invite even though it extends the host email.
+  protected omitIcalEvent = false;
   private metadata: { rescheduleLink: string };
   constructor(calEvent: CalendarEvent, metadata: { rescheduleLink: string }) {
     super({ calEvent });

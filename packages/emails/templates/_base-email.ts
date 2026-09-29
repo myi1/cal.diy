@@ -29,6 +29,16 @@ export default class BaseEmail {
   protected async getNodeMailerPayload(): Promise<Record<string, unknown>> {
     return {};
   }
+
+  // remaxhub: when true the .ics invite is left off. Set for emails to the host (see OrganizerScheduledEmail).
+  protected omitIcalEvent = false;
+
+  protected async getPayloadForSending(): Promise<Record<string, unknown>> {
+    const payload = await this.getNodeMailerPayload();
+    if (!this.omitIcalEvent) return payload;
+    const { icalEvent: _icalEvent, ...withoutIcalEvent } = payload;
+    return withoutIcalEvent;
+  }
   public async sendEmail() {
     const featuresRepository = new FeaturesRepository(prisma);
     const emailsDisabled = await featuresRepository.checkIfFeatureIsEnabledGlobally("emails");
@@ -41,14 +51,14 @@ export default class BaseEmail {
     if (process.env.INTEGRATION_TEST_MODE === "true") {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       //@ts-expect-error
-      setTestEmail(await this.getNodeMailerPayload());
+      setTestEmail(await this.getPayloadForSending());
       console.log(
         "Skipped Sending Email as process.env.NEXT_PUBLIC_UNIT_TESTS is set. Emails are available in globalThis.testEmails"
       );
       return new Promise((r) => r("Skipped sendEmail for Unit Tests"));
     }
 
-    const payload = await this.getNodeMailerPayload();
+    const payload = await this.getPayloadForSending();
 
     const from = "from" in payload ? (payload.from as string) : "";
     const to = "to" in payload ? (payload.to as string) : "";

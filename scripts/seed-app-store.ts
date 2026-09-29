@@ -51,7 +51,10 @@ async function createApp(
 
     // Only enable apps if they have valid keys (or don't require keys)
     const keysToValidate = (keys ?? foundApp?.keys) as Prisma.JsonValue | undefined;
-    const enabled = shouldEnableApp(dirName, keysToValidate);
+    // remaxhub: this seed runs on every container start and would re-enable every app; keep only the
+    // allowlisted ones on (unused OAuth apps are attack surface, see CVE-2026-9303).
+    const allowlist = process.env.REMAXHUB_ENABLED_APPS?.split(",").map((s) => s.trim());
+    const enabled = shouldEnableApp(dirName, keysToValidate) && (!allowlist || allowlist.includes(slug));
     const data = {
       slug,
       dirName,

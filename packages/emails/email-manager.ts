@@ -498,6 +498,11 @@ export const sendDeclinedEmailsAndSMS = async (
   await eventDeclindedSms.sendSMSToAttendees();
 };
 
+export const HANDOVER_CANCELLATION_PREFIX = "[handover]";
+
+export const isHandoverCancellation = (cancellationReason?: string | null) =>
+  !!cancellationReason?.trim().startsWith(HANDOVER_CANCELLATION_PREFIX);
+
 export const sendCancelledEmailsAndSMS = async (
   calEvent: CalendarEvent,
   eventNameObject: Pick<EventNameObjectType, "eventName">,
@@ -528,7 +533,13 @@ export const sendCancelledEmailsAndSMS = async (
     }
   }
 
-  if (!shouldSkipAttendeeEmailWithSettings(eventTypeMetadata, organizationSettings, EmailType.CANCELLATION)) {
+  // remaxhub: Hub hands a call to another advisor by cancelling with a "[handover]" reason and rebooking the
+  // same time and link, so the lead is told nothing; only the advisors hear about it.
+  const isHandover = isHandoverCancellation(calEvent.cancellationReason);
+  if (
+    !isHandover &&
+    !shouldSkipAttendeeEmailWithSettings(eventTypeMetadata, organizationSettings, EmailType.CANCELLATION)
+  ) {
     emailsToSend.push(
       ...calendarEvent.attendees.map((attendee) => {
         return sendEmail(

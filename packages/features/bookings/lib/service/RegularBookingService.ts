@@ -71,6 +71,7 @@ import type { PrismaClient } from "@calcom/prisma";
 import type { AssignmentReasonEnum, DestinationCalendar, Prisma, User } from "@calcom/prisma/client";
 import { BookingStatus, CreationSource, SchedulingType, WebhookTriggerEvents } from "@calcom/prisma/enums";
 import { userMetadata as userMetadataSchema } from "@calcom/prisma/zod-utils";
+import type { EventTypeMetadata } from "@calcom/prisma/zod-utils";
 import type {
   AdditionalInformation,
   AppsStatus,
@@ -2154,7 +2155,7 @@ async function handler(
             action: BookingActionMap.confirmed,
             data: {
               eventType: {
-                metadata: eventType.metadata,
+                metadata: withHandoverEmailRules(eventType.metadata, reqBody.metadata),
                 schedulingType: eventType.schedulingType,
               },
               eventNameObject,
@@ -2687,4 +2688,20 @@ export class RegularBookingService implements IBookingService {
       input.bookingDataSchemaGetter
     );
   }
+}
+
+// remaxhub: a booking Hub makes to hand a call to another advisor (metadata hub_handover "true") keeps the
+// lead's time and link, so the lead gets no new confirmation; the new advisor still gets theirs.
+export function withHandoverEmailRules(
+  eventTypeMetadata: EventTypeMetadata | undefined,
+  bookingMetadata: Record<string, unknown> | undefined
+): EventTypeMetadata | undefined {
+  if (bookingMetadata?.hub_handover !== "true") return eventTypeMetadata;
+  return {
+    ...eventTypeMetadata,
+    disableStandardEmails: {
+      ...eventTypeMetadata?.disableStandardEmails,
+      confirmation: { ...eventTypeMetadata?.disableStandardEmails?.confirmation, attendee: true },
+    },
+  };
 }

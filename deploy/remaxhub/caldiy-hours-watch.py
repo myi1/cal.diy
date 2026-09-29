@@ -279,7 +279,8 @@ def send(subject, body, html_body, to):
     msg.set_content(body)
     msg.add_alternative(html_body, subtype="html")
     if os.path.exists(LOGO):
-        msg.get_payload()[1].add_related(open(LOGO, "rb").read(), "image", "png", cid="<logo>")
+        msg.get_payload()[1].add_related(open(LOGO, "rb").read(), "image", "png", cid="<logo>",
+                                         filename="remax-hub.png", disposition="inline")
     with smtplib.SMTP_SSL(smtp["EMAIL_SMTP_HOST"], int(smtp.get("EMAIL_SMTP_PORT", "465")), timeout=30) as s:
         s.login(smtp["EMAIL_SMTP_USER"], smtp["EMAIL_SMTP_PASSWORD"])
         s.send_message(msg)

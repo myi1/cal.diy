@@ -287,9 +287,6 @@ export class AvailableSlotsService {
     if (!timeZone) {
       return slotsMappedToDate;
     }
-    const inputStartTime = dayjs(startTime).tz(timeZone);
-    const inputEndTime = dayjs(endTime).tz(timeZone);
-
     // fr-CA uses YYYY-MM-DD format
     const formatter = new Intl.DateTimeFormat("fr-CA", {
       year: "numeric",
@@ -298,9 +295,14 @@ export class AvailableSlotsService {
       timeZone: timeZone,
     });
 
+    const firstDate = formatter.format(new Date(startTime));
+    const lastDate = formatter.format(new Date(endTime));
+
+    // Step through calendar dates in UTC: adding days to a Dayjs in the booker's timezone keeps a
+    // stale UTC offset after a DST change, which repeated a date and dropped the last one.
     const allowedDates = new Set<string>();
-    for (let d = inputStartTime.startOf("day"); !d.isAfter(inputEndTime, "day"); d = d.add(1, "day")) {
-      allowedDates.add(formatter.format(d.toDate()));
+    for (let d = dayjs.utc(firstDate); d.format("YYYY-MM-DD") <= lastDate; d = d.add(1, "day")) {
+      allowedDates.add(d.format("YYYY-MM-DD"));
     }
 
     const filtered = {} as T;
@@ -1149,15 +1151,21 @@ export class AvailableSlotsService {
           travelSchedules,
         });
 
-        availableTimeSlots = timeSlots.filter((slot) => {
-          const slotStart = slot.time;
-          const slotEnd = slot.time.add(eventLength, "minute");
+        // Compare epoch ms, not Dayjs isAfter/isBefore/isSame: slot times are built by repeated
+        // .add() in the booker's timezone and keep a stale UTC offset after a DST change, and the
+        // timezone plugin's startOf/endOf (used by those comparisons) re-reads the stale wall-clock
+        // time, shifting the compared instant by the DST delta.
+        const eventLengthMs = eventLength * 60_000;
+        const restrictionRangesMs = restrictionRanges.map((range) => ({
+          start: range.start.valueOf(),
+          end: range.end.valueOf(),
+        }));
 
-          return restrictionRanges.some(
-            (range) =>
-              (slotStart.isAfter(range.start) || slotStart.isSame(range.start)) &&
-              (slotEnd.isBefore(range.end) || slotEnd.isSame(range.end))
-          );
+        availableTimeSlots = timeSlots.filter((slot) => {
+          const slotStartMs = slot.time.valueOf();
+          const slotEndMs = slotStartMs + eventLengthMs;
+
+          return restrictionRangesMs.some((range) => slotStartMs >= range.start && slotEndMs <= range.end);
         });
       } else {
         availableTimeSlots = timeSlots;

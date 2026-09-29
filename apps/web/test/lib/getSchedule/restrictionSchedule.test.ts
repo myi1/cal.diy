@@ -10,6 +10,7 @@ import {
 import { describe, test, vi } from "vitest";
 import type { z } from "zod";
 
+import dayjs from "@calcom/dayjs";
 import { getAvailableSlotsService } from "@calcom/features/di/containers/AvailableSlots";
 import type { getScheduleSchema } from "@calcom/trpc/server/routers/viewer/slots/types";
 
@@ -464,6 +465,136 @@ describe("getSchedule", () => {
       // Verify a late evening slot (8:00 PM Kolkata, 3:30 PM London) is present
       const lateEveningSlot = `${plus2DateString}T14:30:00.000Z`;
       expect(result.slots[plus2DateString].map((s) => s.time)).toContain(lateEveningSlot);
+    });
+
+    describe("across a DST change in the restriction schedule's timezone", () => {
+      // UK clocks go back on Sun 2026-10-25. Host is available all day (Asia/Dubai), so the
+      // Europe/London 08:00-20:45 restriction schedule is the only limit on the slots.
+      const setupDstScenario = async () => {
+        await setupTeamAndFeatures();
+        vi.setSystemTime("2026-09-29T08:00:00Z");
+
+        const scenarioData: ScheduleScenario = {
+          ...getBaseScenarioData(),
+          eventTypes: [
+            {
+              id: 1,
+              length: 15,
+              slotInterval: 15,
+              teamId: 1,
+              restrictionScheduleId: 50,
+              useBookerTimezone: false,
+              hosts: [{ userId: 101 }],
+            },
+          ],
+          users: [
+            {
+              ...TestData.users.example,
+              id: 101,
+              schedules: [
+                {
+                  id: 1,
+                  name: "All day Dubai",
+                  timeZone: "Asia/Dubai",
+                  availability: [
+                    {
+                      days: [0, 1, 2, 3, 4, 5, 6],
+                      startTime: new Date("1970-01-01T00:00:00.000Z"),
+                      endTime: new Date("1970-01-01T23:59:00.000Z"),
+                      date: null,
+                    },
+                  ],
+                },
+              ],
+              teams: [
+                {
+                  membership: { role: "ADMIN", accepted: true },
+                  team: { id: 1, name: "Test Team", slug: "test-team" },
+                },
+              ],
+            },
+          ],
+        };
+
+        scenarioData.users[0].schedules.push({
+          id: 50,
+          name: "UK calling hours",
+          timeZone: "Europe/London",
+          availability: [
+            {
+              days: [0, 1, 2, 3, 4, 5, 6],
+              startTime: new Date("1970-01-01T08:00:00.000Z"),
+              endTime: new Date("1970-01-01T20:45:00.000Z"),
+              date: null,
+            },
+          ],
+        });
+
+        await createBookingScenario(scenarioData);
+      };
+
+      const getFirstAndLastSlot = (slots: { time: string }[] | undefined) => {
+        const times = (slots ?? []).map((slot) => new Date(slot.time).toISOString()).sort();
+        return [times[0], times[times.length - 1]];
+      };
+
+      // 08:00-20:30 starts in London: BST (+01:00) before the change, GMT (+00:00) after.
+      const expectedUtcBounds: Record<string, [string, string]> = {
+        "2026-10-24": ["2026-10-24T07:00:00.000Z", "2026-10-24T19:30:00.000Z"],
+        "2026-10-25": ["2026-10-25T08:00:00.000Z", "2026-10-25T20:30:00.000Z"],
+        "2026-10-26": ["2026-10-26T08:00:00.000Z", "2026-10-26T20:30:00.000Z"],
+        "2026-10-27": ["2026-10-27T08:00:00.000Z", "2026-10-27T20:30:00.000Z"],
+      };
+
+      test.each([
+        {
+          bookerTimeZone: "Europe/London",
+          startTime: "2026-10-23T23:00:00.000Z",
+          endTime: "2026-10-27T23:59:59.999Z",
+        },
+        {
+          bookerTimeZone: "Europe/Paris",
+          startTime: "2026-10-23T22:00:00.000Z",
+          endTime: "2026-10-27T22:59:59.999Z",
+        },
+        {
+          bookerTimeZone: "Asia/Dubai",
+          startTime: "2026-10-23T20:00:00.000Z",
+          endTime: "2026-10-28T19:59:59.999Z",
+        },
+        { bookerTimeZone: "UTC", startTime: "2026-10-24T00:00:00.000Z", endTime: "2026-10-27T23:59:59.999Z" },
+      ])("keeps slots inside 08:00-20:45 Europe/London for a $bookerTimeZone booker", async ({
+        bookerTimeZone,
+        startTime,
+        endTime,
+      }) => {
+        await setupDstScenario();
+
+        const result = await availableSlotsService.getAvailableSlots({
+          input: {
+            eventTypeId: 1,
+            eventTypeSlug: "",
+            startTime,
+            endTime,
+            timeZone: bookerTimeZone,
+            isTeamEvent: true,
+            orgSlug: null,
+          },
+        });
+
+        const allSlotTimes = Object.values(result.slots)
+          .flat()
+          .map((slot) => new Date(slot.time).toISOString());
+
+        for (const [londonDate, [first, last]] of Object.entries(expectedUtcBounds)) {
+          const slotsOnLondonDate = allSlotTimes
+            .filter((time) => dayjs(time).tz("Europe/London").format("YYYY-MM-DD") === londonDate)
+            .map((time) => ({ time }));
+          expect(getFirstAndLastSlot(slotsOnLondonDate)).toEqual([first, last]);
+          // 08:00-20:30 inclusive in 15 minute steps
+          expect(slotsOnLondonDate).toHaveLength(51);
+        }
+      });
     });
   });
 });

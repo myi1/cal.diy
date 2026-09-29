@@ -1,0 +1,118 @@
+# REMAX Hub booking layer (Cal.diy) on Coolify: book.remaxhub.ae (web) + book-api.remaxhub.ae (API v2).
+# Pushed to Coolify through the API (PATCH /services/<uuid> with docker_compose_raw + urls); see RUNBOOK.md.
+# ${...} values live only in Coolify's env for this service, never in git.
+# IMAGE_TAG is the sha-<10 chars> tag built by .github/workflows/remaxhub-images.yml.
+
+x-cal-common: &cal-common
+  NODE_ENV: production
+  NEXT_PUBLIC_WEBAPP_URL: https://book.remaxhub.ae
+  NEXT_PUBLIC_API_V2_URL: https://book-api.remaxhub.ae/api/v2
+  NEXT_PUBLIC_APP_NAME: REMAX Hub
+  NEXT_PUBLIC_COMPANY_NAME: REMAX Hub
+  NEXT_PUBLIC_SUPPORT_MAIL_ADDRESS: hub@remax.ae
+  NEXT_PUBLIC_WEBSITE_URL: https://remaxhub.ae
+  NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+  # Encrypts calendar credentials (the advisors' Zoho tokens). Losing it means every advisor reconnects.
+  CALENDSO_ENCRYPTION_KEY: ${CALENDSO_ENCRYPTION_KEY}
+  DATABASE_URL: postgresql://calcom:${POSTGRES_PASSWORD}@postgres:5432/calcom
+  DATABASE_DIRECT_URL: postgresql://calcom:${POSTGRES_PASSWORD}@postgres:5432/calcom
+  REDIS_URL: redis://redis:6379
+  CALCOM_TELEMETRY_DISABLED: "1"
+  # Both containers send booking emails (API v2 bookings are emailed from the api container).
+  EMAIL_FROM: hub@remax.ae
+  EMAIL_FROM_NAME: REMAX Hub
+  EMAIL_SERVER_HOST: smtppro.zoho.com
+  EMAIL_SERVER_PORT: "465"
+  EMAIL_SERVER_USER: ${EMAIL_SERVER_USER}
+  EMAIL_SERVER_PASSWORD: ${EMAIL_SERVER_PASSWORD}
+
+services:
+  web:
+    image: ghcr.io/myi1/caldiy-web:${IMAGE_TAG}
+    restart: unless-stopped
+    expose:
+      - "3000"
+    environment:
+      <<: *cal-common
+      NEXTAUTH_URL: https://book.remaxhub.ae
+      DATABASE_HOST: postgres:5432
+      CRON_API_KEY: ${CRON_API_KEY}
+      NEXT_PUBLIC_DISABLE_SIGNUP: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3000/auth/login || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 180s
+    deploy:
+      resources:
+        limits:
+          memory: 2048M
+
+  api:
+    image: ghcr.io/myi1/caldiy-api:${IMAGE_TAG}
+    restart: unless-stopped
+    expose:
+      - "80"
+    environment:
+      <<: *cal-common
+      API_PORT: "80"
+      API_URL: https://book-api.remaxhub.ae
+      WEB_APP_URL: https://book.remaxhub.ae
+      DATABASE_READ_URL: postgresql://calcom:${POSTGRES_PASSWORD}@postgres:5432/calcom
+      DATABASE_WRITE_URL: postgresql://calcom:${POSTGRES_PASSWORD}@postgres:5432/calcom
+      JWT_SECRET: ${JWT_SECRET}
+      API_KEY_PREFIX: cal_
+      REWRITE_API_V2_PREFIX: "1"
+      LOG_LEVEL: info
+      # Required at boot; we don't use Stripe.
+      STRIPE_API_KEY: sk_unused
+      STRIPE_WEBHOOK_SECRET: whsec_unused
+      IS_TEAM_BILLING_ENABLED: "false"
+      ENABLE_ASYNC_TASKER: "false"
+    depends_on:
+      # web runs `prisma migrate deploy` on start; the api must not start against an old schema.
+      web:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 1536M
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: calcom
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: calcom
+    volumes:
+      - caldiy-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U calcom -d calcom"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - caldiy-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  caldiy-postgres:
+  caldiy-redis:

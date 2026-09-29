@@ -1,0 +1,11 @@
+# /etc/cron.d/caldiy: booking layer (Cal.diy) jobs. CALDIY_SERVICE_UUID is the Coolify service uuid.
+# CRON_API_KEY is read from the web container so the secret isn't duplicated here.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+CALDIY_SERVICE_UUID=__SERVICE_UUID__
+
+# Scheduled webhook triggers (MEETING_ENDED / MEETING_STARTED) are only sent when this endpoint is called.
+* * * * * root k=$(docker exec web-$CALDIY_SERVICE_UUID printenv CRON_API_KEY) && curl -fsS -m 50 -X POST -H "authorization: $k" -H 'content-type: application/json' https://book.remaxhub.ae/api/cron/webhookTriggers >/dev/null 2>>/var/log/caldiy-cron.log
+
+# Nightly database backup, 23:30 UTC (03:30 Dubai), after the CMS backup at 23:15.
+30 23 * * * root /usr/local/bin/caldiy-backup.sh

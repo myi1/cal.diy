@@ -103,13 +103,34 @@ ENV NEXT_PUBLIC_WEBAPP_URL=$NEXT_PUBLIC_WEBAPP_URL \
 
 RUN scripts/replace-placeholder.sh http://NEXT_PUBLIC_WEBAPP_URL_PLACEHOLDER ${NEXT_PUBLIC_WEBAPP_URL}
 
-FROM node:22 AS runner
+# remaxhub: tools the slim runtime needs at start-up besides the Next.js server: the Prisma CLI for
+# migrations, and the app-store seed bundled into one JS file (upstream ran it with ts-node on sources).
+FROM builder-two AS tools
+RUN node_modules/.bin/esbuild scripts/seed-app-store.ts --bundle --platform=node --target=node22 --format=cjs \
+      --outfile=/out/seed-app-store.cjs --external:@prisma/client --external:pg-native --log-level=warning
+RUN mkdir -p /tools && cd /tools && echo '{"private":true}' > package.json \
+    && npm install --omit=dev --no-audit --no-fund --loglevel=error \
+       "prisma@$(node -p "require('/calcom/node_modules/prisma/package.json').version")"
+
+# remaxhub: slim runtime. Next.js standalone output (server + only the dependencies it traced) instead of
+# the whole workspace with every dev dependency (~7 GB -> well under 1 GB).
+FROM node:22-slim AS runner
 
 WORKDIR /calcom
 
-RUN apt-get update && apt-get install -y --no-install-recommends netcat-openbsd wget && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends netcat-openbsd wget ca-certificates openssl \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder-two /calcom ./
+COPY --from=builder-two /calcom/apps/web/.next/standalone ./
+COPY --from=builder-two /calcom/apps/web/.next/static ./apps/web/.next/static
+COPY --from=builder-two /calcom/apps/web/public ./apps/web/public
+COPY --from=builder-two /calcom/packages/prisma/schema.prisma ./packages/prisma/schema.prisma
+COPY --from=builder-two /calcom/packages/prisma/migrations ./packages/prisma/migrations
+COPY --from=tools /tools /tools
+COPY --from=tools /out/seed-app-store.cjs ./scripts/seed-app-store.cjs
+COPY scripts/wait-for-it.sh scripts/replace-placeholder.sh scripts/start-standalone.sh ./scripts/
+RUN chmod +x scripts/*.sh
+
 ARG NEXT_PUBLIC_WEBAPP_URL=http://localhost:3000
 ENV NEXT_PUBLIC_WEBAPP_URL=$NEXT_PUBLIC_WEBAPP_URL \
   BUILT_NEXT_PUBLIC_WEBAPP_URL=$NEXT_PUBLIC_WEBAPP_URL
@@ -120,4 +141,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=30s --retries=5 \
   CMD wget --spider http://localhost:3000 || exit 1
 
-CMD ["/calcom/scripts/start.sh"]
+CMD ["/calcom/scripts/start-standalone.sh"]

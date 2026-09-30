@@ -36,6 +36,25 @@ RUN yarn workspace @calcom/api-v2 run generate-schemas
 RUN yarn workspace @calcom/api-v2 run build:docker
 RUN yarn workspace @calcom/api-v2 run build
 
+# remaxhub: production dependencies only. Native builds are already done in place, so scripts stay off
+# (the root postinstall and workspace build steps need dev tools that are being removed).
+FROM build AS prod-deps
+RUN --mount=type=cache,id=caldiy-yarn-alpine,target=/calcom/.yarn/cache \
+    node -e "const f='package.json',p=require('./'+f);delete p.scripts.postinstall;require('fs').writeFileSync(f,JSON.stringify(p,null,2))" \
+    && HUSKY=0 YARN_ENABLE_SCRIPTS=false yarn workspaces focus @calcom/api-v2 --production
+
+# remaxhub: slim runtime: the compiled API, the workspace packages it links to, and production deps.
+FROM node:22-alpine AS runtime
+RUN if [ -e /usr/lib/libssl.so.3 ] && [ ! -e /lib/libssl.so.3 ]; then ln -s /usr/lib/libssl.so.3 /lib/libssl.so.3; fi
+WORKDIR /calcom
+ENV NODE_ENV="production" \
+    USE_POOL="true"
+COPY --from=prod-deps /calcom/package.json ./package.json
+COPY --from=prod-deps /calcom/node_modules ./node_modules
+COPY --from=prod-deps /calcom/packages ./packages
+COPY --from=prod-deps /calcom/apps/api/v2 ./apps/api/v2
+WORKDIR /calcom/apps/api/v2
+
 EXPOSE 80
 
-CMD [ "yarn", "workspace", "@calcom/api-v2", "start:prod"]
+CMD [ "node", "./dist/apps/api/v2/src/main.js" ]

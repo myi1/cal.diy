@@ -59,6 +59,7 @@ describe.skipIf(!process.env.RENDER_PREVIEWS)("REMAX Hub email previews", () => 
       ["advisor-moved", "OrganizerRescheduledEmail", { calEvent, attendee: advisor }],
       ["advisor-cancelled", "OrganizerCancelledEmail", { calEvent: cancelled, attendee: advisor }],
       ["advisor-cancelled-handover", "OrganizerCancelledEmail", { calEvent: handedOver, attendee: advisor }],
+      ["advisor-booked-handover", "OrganizerScheduledEmail", { calEvent: { ...calEvent, hubHandover: true }, attendee: advisor }],
     ];
 
     fs.mkdirSync(OUT, { recursive: true });

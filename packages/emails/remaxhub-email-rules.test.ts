@@ -87,3 +87,25 @@ describe("handover cancellation", () => {
     expect(sent.sort()).toEqual(["attendee-cancelled", "organizer-cancelled"]);
   });
 });
+
+describe("handover booking: new advisor's email", () => {
+  it("says the buyer wasn't emailed, and only on the advisor's copy of a handover", async () => {
+    const { default: renderEmail } = await import("./src/renderEmail");
+    const base = { ...calEvent(null), description: "", location: "https://meet.remaxhub.ae/ABC123" } as CalendarEvent;
+    const advisor = base.organizer;
+    const lead = base.attendees[0];
+    const handover = await renderEmail("OrganizerScheduledEmail", {
+      calEvent: { ...base, hubHandover: true },
+      attendee: advisor,
+    });
+    const normal = await renderEmail("OrganizerScheduledEmail", { calEvent: base, attendee: advisor });
+    const buyer = await renderEmail("AttendeeScheduledEmail", {
+      calEvent: { ...base, hubHandover: true },
+      attendee: lead,
+    });
+    expect(handover).toContain("Handed over to you from another advisor");
+    expect(handover).not.toContain("emailed_you_and_any_other_attendees");
+    expect(normal).not.toContain("Handed over to you");
+    expect(buyer).not.toContain("Handed over to you");
+  });
+});

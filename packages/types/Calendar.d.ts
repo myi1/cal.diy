@@ -226,6 +226,8 @@ export interface CalendarEvent {
   rescheduledBy?: string;
   organizationId?: number | null;
   hasOrganizerChanged?: boolean;
+  // remaxhub: set on the booking Hub makes to hand a call to another advisor (the buyer isn't emailed)
+  hubHandover?: boolean;
   assignmentReason?: {
     category: string; // Translated label like "Routed", "Reassigned", etc.
     details?: string | null; // The detailed reason string

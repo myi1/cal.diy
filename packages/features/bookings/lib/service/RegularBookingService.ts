@@ -2151,18 +2151,18 @@ async function handler(
       }
       if (!noEmail) {
         if (!isDryRun && !(eventType.seatsPerTimeSlot && rescheduleUid)) {
+          // A reschedule carries the booking's metadata over, so only a fresh booking can be a handover.
+          const handoverMetadata = originalRescheduledBooking ? undefined : reqBody.metadata;
+          const isHubHandover = isHandoverBooking(handoverMetadata);
           await emailsAndSmsHandler.send({
             action: BookingActionMap.confirmed,
             data: {
               eventType: {
-                metadata: withHandoverEmailRules(
-                  eventType.metadata,
-                  originalRescheduledBooking ? undefined : reqBody.metadata
-                ),
+                metadata: withHandoverEmailRules(eventType.metadata, handoverMetadata),
                 schedulingType: eventType.schedulingType,
               },
               eventNameObject,
-              evt,
+              evt: isHubHandover ? { ...evt, hubHandover: true } : evt,
               additionalInformation,
               additionalNotes,
               customInputs,
@@ -2695,11 +2695,15 @@ export class RegularBookingService implements IBookingService {
 
 // remaxhub: a booking Hub makes to hand a call to another advisor (metadata hub_handover "true") keeps the
 // lead's time and link, so the lead gets no new confirmation; the new advisor still gets theirs.
+export function isHandoverBooking(bookingMetadata: Record<string, unknown> | undefined) {
+  return bookingMetadata?.hub_handover === "true";
+}
+
 export function withHandoverEmailRules(
   eventTypeMetadata: EventTypeMetadata | undefined,
   bookingMetadata: Record<string, unknown> | undefined
 ): EventTypeMetadata | undefined {
-  if (bookingMetadata?.hub_handover !== "true") return eventTypeMetadata;
+  if (!isHandoverBooking(bookingMetadata)) return eventTypeMetadata;
   return {
     ...eventTypeMetadata,
     disableStandardEmails: {

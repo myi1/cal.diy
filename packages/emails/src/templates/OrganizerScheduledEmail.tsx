@@ -59,7 +59,9 @@ export const OrganizerScheduledEmail = (
                   name: props.attendee.name,
                   interpolation: { escapeValue: false },
                 })
-              : ""}
+              : props.calEvent.hubHandover
+                ? "Handed over to you from another advisor. The buyer keeps the same time and link, and hasn't been emailed."
+                : ""}
           </>
         )
       }

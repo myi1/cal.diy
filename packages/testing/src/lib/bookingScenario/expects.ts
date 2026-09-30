@@ -28,9 +28,12 @@ import { DEFAULT_TIMEZONE_BOOKER } from "./getMockRequestDataForBooking";
 // Alternative could be that we use some other library to do the timezone conversion?
 function formatDateToWhenFormat({ start, end }: { start: Date; end: Date }, timeZone: string) {
   const startTime = dayjs(start).tz(timeZone);
-  return `${startTime.format(`dddd, LL`)} | ${startTime.format("h:mma")} - ${dayjs(end)
+  // Matches the remaxhub UK date format in packages/emails/src/components/WhenInfo.tsx
+  const zone =
+    timeZone === "Europe/London" ? "UK time" : timeZone === "Asia/Dubai" ? "Dubai time" : `(${timeZone})`;
+  return `${startTime.format("dddd D MMMM YYYY")}, ${startTime.format("h:mma")} to ${dayjs(end)
     .tz(timeZone)
-    .format("h:mma")} (${timeZone})`;
+    .format("h:mma")} ${zone}`;
 }
 
 type Recurrence = {

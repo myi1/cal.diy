@@ -59,8 +59,8 @@ import { testWithAndWithoutOrg } from "@calcom/testing/lib/bookingScenario/test"
 import { test } from "@calcom/testing/lib/fixtures/fixtures";
 import type { Request, Response } from "express";
 import type { NextApiRequest, NextApiResponse } from "next";
-import { describe, expect } from "vitest";
 import type Stripe from "stripe";
+import { describe, expect } from "vitest";
 import { getNewBookingHandler } from "./getNewBookingHandler";
 
 const log = logger.getSubLogger({ prefix: ["[fresh-booking.test]"] });
@@ -697,6 +697,76 @@ describe("handleNewBooking", () => {
       );
 
       test(
+        "remaxhub: when the calendar event can't be created but the location is a link, the confirmation emails are still sent",
+        async ({ emails }) => {
+          const handleNewBooking = getNewBookingHandler();
+          const booker = getBooker({
+            email: "booker@example.com",
+            name: "Booker",
+          });
+
+          const organizer = getOrganizer({
+            name: "Organizer",
+            email: "organizer@example.com",
+            id: 101,
+            schedules: [TestData.schedules.IstWorkHours],
+            credentials: [getGoogleCalendarCredential()],
+            selectedCalendars: [TestData.selectedCalendars.google],
+            destinationCalendar: {
+              integration: "google_calendar",
+              externalId: "organizer@google-calendar.com",
+            },
+          });
+          await createBookingScenario(
+            getScenarioData({
+              eventTypes: [
+                {
+                  id: 1,
+                  slotInterval: 30,
+                  length: 30,
+                  users: [
+                    {
+                      id: 101,
+                    },
+                  ],
+                },
+              ],
+              organizer,
+              apps: [TestData.apps["google-calendar"], TestData.apps["daily-video"]],
+            })
+          );
+
+          mockCalendarToCrashOnCreateEvent("googlecalendar");
+
+          const meetLink = "https://meet.example.com/abc";
+          const mockBookingData = getMockRequestDataForBooking({
+            data: {
+              eventTypeId: 1,
+              responses: {
+                email: booker.email,
+                name: booker.name,
+                location: { optionValue: "", value: meetLink },
+              },
+            },
+          });
+
+          const createdBooking = await handleNewBooking({
+            bookingData: mockBookingData,
+          });
+          expect(createdBooking.location).toBe(meetLink);
+
+          const recipients = emails.get().map((email) => email.to);
+          expect(recipients).toEqual(
+            expect.arrayContaining([
+              expect.stringContaining(booker.email),
+              expect.stringContaining(organizer.email),
+            ])
+          );
+        },
+        timeout
+      );
+
+      test(
         "If destination calendar has no credential ID due to some reason, it should create the event in first connected calendar instead",
 
         async ({ emails }) => {
@@ -823,7 +893,6 @@ describe("handleNewBooking", () => {
             ],
             iCalUID: createdBooking.iCalUID,
           });
-
 
           expectSuccessfulCalendarEventCreationInCalendar(calendarMock, {
             calendarId: "organizer@google-calendar.com",
@@ -2948,7 +3017,8 @@ describe("handleNewBooking", () => {
           const booker = getBooker({
             email: "booker@example.com",
             name: "Booker",
-          });          const organizer = getOrganizer({
+          });
+          const organizer = getOrganizer({
             name: "Organizer",
             email: "organizer@example.com",
             id: 101,
@@ -3086,7 +3156,8 @@ describe("handleNewBooking", () => {
             7. Booking should still stay in pending state
       `,
 
-        async ({ emails }) => {          const handleNewBooking = getNewBookingHandler();
+        async ({ emails }) => {
+          const handleNewBooking = getNewBookingHandler();
           const subscriberUrl = "http://my-webhook.example.com";
           const booker = getBooker({
             email: "booker@example.com",

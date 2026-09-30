@@ -70,8 +70,8 @@ import { distributedTracing } from "@calcom/lib/tracing/factory";
 import type { PrismaClient } from "@calcom/prisma";
 import type { AssignmentReasonEnum, DestinationCalendar, Prisma, User } from "@calcom/prisma/client";
 import { BookingStatus, CreationSource, SchedulingType, WebhookTriggerEvents } from "@calcom/prisma/enums";
-import { userMetadata as userMetadataSchema } from "@calcom/prisma/zod-utils";
 import type { EventTypeMetadata } from "@calcom/prisma/zod-utils";
+import { userMetadata as userMetadataSchema } from "@calcom/prisma/zod-utils";
 import type {
   AdditionalInformation,
   AppsStatus,
@@ -2062,6 +2062,34 @@ async function handler(
     referencesToCreate = createManager.referencesToCreate;
     videoCallUrl = evt.videoCallData?.url ? evt.videoCallData.url : null;
 
+    // remaxhub: emails are sent on success, and also when the only failure is writing the calendar event
+    // while the location is a fixed link (Hub's meet link): the buyer's call still happens, so they must
+    // still get their confirmation. Upstream skipped all emails whenever every integration failed.
+    const sendConfirmedEmails = async (additionalInformation: AdditionalInformation) => {
+      if (!noEmail) {
+        if (!isDryRun && !(eventType.seatsPerTimeSlot && rescheduleUid)) {
+          // A reschedule carries the booking's metadata over, so only a fresh booking can be a handover.
+          const handoverMetadata = originalRescheduledBooking ? undefined : reqBody.metadata;
+          const isHubHandover = isHandoverBooking(handoverMetadata);
+          await emailsAndSmsHandler.send({
+            action: BookingActionMap.confirmed,
+            data: {
+              eventType: {
+                metadata: withHandoverEmailRules(eventType.metadata, handoverMetadata),
+                schedulingType: eventType.schedulingType,
+              },
+              eventNameObject,
+              evt: isHubHandover ? { ...evt, hubHandover: true } : evt,
+              additionalInformation,
+              additionalNotes,
+              customInputs,
+            },
+          });
+          bookingEmailsAndSmsTaskerAction = BookingActionMap.confirmed;
+        }
+      }
+    };
+
     if (results.length > 0 && results.every((res) => !res.success)) {
       const error = {
         errorCode: "BookingCreatingMeetingFailed",
@@ -2072,6 +2100,9 @@ async function handler(
         `EventManager.create failure in some of the integrations ${organizerUser.username}`,
         safeStringify({ error, results })
       );
+      if (/^https?:\/\//.test(evt.location ?? "")) {
+        await sendConfirmedEmails({});
+      }
     } else {
       const additionalInformation: AdditionalInformation = {};
 
@@ -2149,28 +2180,7 @@ async function handler(
           });
         }
       }
-      if (!noEmail) {
-        if (!isDryRun && !(eventType.seatsPerTimeSlot && rescheduleUid)) {
-          // A reschedule carries the booking's metadata over, so only a fresh booking can be a handover.
-          const handoverMetadata = originalRescheduledBooking ? undefined : reqBody.metadata;
-          const isHubHandover = isHandoverBooking(handoverMetadata);
-          await emailsAndSmsHandler.send({
-            action: BookingActionMap.confirmed,
-            data: {
-              eventType: {
-                metadata: withHandoverEmailRules(eventType.metadata, handoverMetadata),
-                schedulingType: eventType.schedulingType,
-              },
-              eventNameObject,
-              evt: isHubHandover ? { ...evt, hubHandover: true } : evt,
-              additionalInformation,
-              additionalNotes,
-              customInputs,
-            },
-          });
-          bookingEmailsAndSmsTaskerAction = BookingActionMap.confirmed;
-        }
-      }
+      await sendConfirmedEmails(additionalInformation);
     }
   } else {
     // If isConfirmedByDefault is false, then booking can't be considered ACCEPTED and thus EventManager has no role to play. Booking is created as PENDING

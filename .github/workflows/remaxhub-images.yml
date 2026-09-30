@@ -3,11 +3,11 @@
 # Tags: sha-<short sha> (what Coolify pins) and remaxhub (moving pointer, never deployed directly).
 name: "REMAX Hub images"
 
+# Images are normally built on the Windows builder (deploy/remaxhub/builder/caldiy-build.sh), which is much
+# faster. This workflow is the manual fallback; it no longer runs on push, so two builders never push
+# different images under the same tag.
 on:
   workflow_dispatch:
-  push:
-    branches: [remaxhub]
-    paths-ignore: ["**/*.md", "docs/**", "deploy/**"]
 
 permissions:
   contents: read

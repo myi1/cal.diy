@@ -7,6 +7,7 @@
 #                                 caldiy-build.sh <commit> web    only the web image (or: api)
 # From the Mac Studio:            ssh win "wsl -d caldiy-builder -u root -- /root/caldiy-build.sh <sha>"
 #                                 NO_PUSH=1 caldiy-build.sh origin/<branch>   build and keep locally only
+#                                 FORCE=1 caldiy-build.sh                     rebuild both even if unchanged
 # Only a build of origin/remaxhub moves the :remaxhub tag.
 # Needs: gh logged in as root with write:packages (gh auth login -h github.com -s write:packages).
 set -euo pipefail
@@ -59,9 +60,31 @@ build() { # name dockerfile [args...]
   echo "$(date -u +%FT%TZ) $name:$TAG built in ${built}s, pushed in $((SECONDS - start - built))s" | tee -a "$LOG"
 }
 
+# Only rebuild an image whose inputs changed since the last pushed build; otherwise give the last pushed
+# image the new tag, so web and api always share one tag for the deploy.
+LAST_FILE=/root/caldiy-last-pushed-sha
+LAST=$(cat "$LAST_FILE" 2>/dev/null || true)
+SHARED=(yarn.lock package.json .yarnrc.yml .yarn turbo.json i18n.json packages)
+changed() { # image -> exit 0 if it must be rebuilt
+  [ -n "${FORCE:-}" ] || [ -z "$LAST" ] || [ "${NO_PUSH:-}" = 1 ] && return 0
+  git cat-file -e "$LAST^{commit}" 2>/dev/null || return 0
+  if [ "$1" = web ]; then set -- "${SHARED[@]}" Dockerfile apps/web scripts
+  else set -- "${SHARED[@]}" apps/api/v2; fi
+  ! git diff --quiet "$LAST" "$SHA" -- "$@"
+}
+retag() { # name
+  docker buildx imagetools create -t "ghcr.io/$OWNER/$1:$TAG" "ghcr.io/$OWNER/$1:sha-${LAST:0:10}" >/dev/null
+  [ -z "$MOVE_TAG" ] || docker buildx imagetools create -t "ghcr.io/$OWNER/$1:remaxhub" "ghcr.io/$OWNER/$1:$TAG" >/dev/null
+  echo "$(date -u +%FT%TZ) $1:$TAG unchanged since sha-${LAST:0:10}, re-tagged" | tee -a "$LOG"
+}
+
 pids=()
-[ "$ONLY" = api ] || { build caldiy-web ./Dockerfile "${WEB_ARGS[@]}" & pids+=($!); }
-[ "$ONLY" = web ] || { build caldiy-api ./apps/api/v2/Dockerfile & pids+=($!); }
+if [ "$ONLY" != api ]; then
+  if changed web; then build caldiy-web ./Dockerfile "${WEB_ARGS[@]}" & pids+=($!); else retag caldiy-web; fi
+fi
+if [ "$ONLY" != web ]; then
+  if changed api; then build caldiy-api ./apps/api/v2/Dockerfile & pids+=($!); else retag caldiy-api; fi
+fi
 fail=0
 for p in "${pids[@]}"; do wait "$p" || fail=1; done
 if [ "$fail" = 1 ]; then
@@ -70,4 +93,5 @@ if [ "$fail" = 1 ]; then
 fi
 # Keep the cache from growing without bound (~100 GB is plenty for both images).
 docker builder prune -f --keep-storage 100GB >/dev/null 2>&1 || true
+[ "${NO_PUSH:-}" = 1 ] || [ -n "$ONLY" ] || echo "$SHA" > "$LAST_FILE"
 echo "$(date -u +%FT%TZ) done $TAG" | tee -a "$LOG"

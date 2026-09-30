@@ -25,6 +25,7 @@ import EventSuccessfullyScheduledSMS from "../sms/attendee/event-scheduled-sms";
 import { EmailType } from "./email-types";
 import AttendeeAddGuestsEmail from "./templates/attendee-add-guests-email";
 import AttendeeAwaitingPaymentEmail from "./templates/attendee-awaiting-payment-email";
+import { isHandoverCancellation } from "./lib/handover";
 import AttendeeCancelledEmail from "./templates/attendee-cancelled-email";
 import AttendeeCancelledSeatEmail from "./templates/attendee-cancelled-seat-email";
 import AttendeeDeclinedEmail from "./templates/attendee-declined-email";
@@ -498,10 +499,7 @@ export const sendDeclinedEmailsAndSMS = async (
   await eventDeclindedSms.sendSMSToAttendees();
 };
 
-export const HANDOVER_CANCELLATION_PREFIX = "[handover]";
-
-export const isHandoverCancellation = (cancellationReason?: string | null) =>
-  !!cancellationReason?.trim().startsWith(HANDOVER_CANCELLATION_PREFIX);
+export { HANDOVER_CANCELLATION_PREFIX, isHandoverCancellation } from "./lib/handover";
 
 export const sendCancelledEmailsAndSMS = async (
   calEvent: CalendarEvent,

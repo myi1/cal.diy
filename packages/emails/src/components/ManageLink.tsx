@@ -46,7 +46,7 @@ export function ManageLink(props: { calEvent: CalendarEvent; attendee: Person })
     return (
       <div
         style={{
-          fontFamily: "Roboto, Helvetica, sans-serif",
+          fontFamily: "'Plus Jakarta Sans','Helvetica Neue',Helvetica,Arial,sans-serif",
           fontSize: "16px",
           fontWeight: 500,
           lineHeight: "0px",
@@ -66,7 +66,7 @@ export function ManageLink(props: { calEvent: CalendarEvent; attendee: Person })
               <a
                 href={rescheduleLink}
                 style={{
-                  color: "#374151",
+                  color: "#003DA5",
                   marginLeft: "5px",
                   marginRight: "5px",
                   textDecoration: "underline",
@@ -81,7 +81,7 @@ export function ManageLink(props: { calEvent: CalendarEvent; attendee: Person })
               <a
                 href={cancelLink}
                 style={{
-                  color: "#374151",
+                  color: "#003DA5",
                   marginLeft: "5px",
                   textDecoration: "underline",
                 }}>
@@ -103,7 +103,7 @@ export function ManageLink(props: { calEvent: CalendarEvent; attendee: Person })
               <a
                 href={bookingLink}
                 style={{
-                  color: "#374151",
+                  color: "#003DA5",
                   marginLeft: "5px",
                   textDecoration: "underline",
                 }}>

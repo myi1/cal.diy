@@ -63,12 +63,19 @@ export function WhenInfo(props: {
         description={
           <span data-testid="when">
             {recurringEvent?.count ? `${t("starting")} ` : ""}
-            {getRecipientStart(`dddd, LL | ${timeFormat}`)} - {getRecipientEnd(timeFormat)}{" "}
-            <span style={{ color: "#4B5563" }}>({timeZone})</span>
+            {getRecipientStart("dddd D MMMM YYYY")}, {getRecipientStart(timeFormat)} to{" "}
+            {getRecipientEnd(timeFormat)} <span style={{ color: "#4B5563" }}>{friendlyTimeZone(timeZone)}</span>
           </span>
         }
         withSpacer
       />
     </div>
   );
+}
+
+// remaxhub: leads are in the UK and advisors in Dubai, so name the zone the way people say it.
+function friendlyTimeZone(timeZone: string) {
+  if (timeZone === "Europe/London") return "UK time";
+  if (timeZone === "Asia/Dubai") return "Dubai time";
+  return `(${timeZone})`;
 }

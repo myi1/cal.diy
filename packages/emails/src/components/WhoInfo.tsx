@@ -23,8 +23,18 @@ export const PersonInfo = ({ name = "", email = "", role = "", phoneNumber = "" 
   );
 };
 
-export function WhoInfo(props: { calEvent: CalendarEvent; t: TFunction }) {
+export function WhoInfo(props: { calEvent: CalendarEvent; t: TFunction; forAttendee?: boolean }) {
   const { t } = props;
+  // remaxhub: the buyer only needs to know who they're speaking to, not the guest list or their own number.
+  if (props.forAttendee) {
+    return (
+      <Info
+        label="Your advisor"
+        description={<div style={{ color: "#101010", fontWeight: 400, lineHeight: "24px" }}>{props.calEvent.organizer.name}</div>}
+        withSpacer
+      />
+    );
+  }
   return (
     <Info
       label={t("who")}

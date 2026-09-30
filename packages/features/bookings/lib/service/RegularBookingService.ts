@@ -2155,7 +2155,10 @@ async function handler(
             action: BookingActionMap.confirmed,
             data: {
               eventType: {
-                metadata: withHandoverEmailRules(eventType.metadata, reqBody.metadata),
+                metadata: withHandoverEmailRules(
+                  eventType.metadata,
+                  originalRescheduledBooking ? undefined : reqBody.metadata
+                ),
                 schedulingType: eventType.schedulingType,
               },
               eventNameObject,

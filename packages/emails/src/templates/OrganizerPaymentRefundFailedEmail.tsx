@@ -38,7 +38,7 @@ function RefundInformation(props: React.ComponentProps<typeof OrganizerPaymentRe
           <td align="center" style={{ fontSize: "0px", padding: "10px 25px", wordBreak: "break-word" }}>
             <div
               style={{
-                fontFamily: "Roboto, Helvetica, sans-serif",
+                fontFamily: "'Plus Jakarta Sans','Helvetica Neue',Helvetica,Arial,sans-serif",
                 fontSize: "16px",
                 fontWeight: 400,
                 lineHeight: "24px",
@@ -55,7 +55,7 @@ function RefundInformation(props: React.ComponentProps<typeof OrganizerPaymentRe
           <td align="center" style={{ fontSize: "0px", padding: "10px 25px", wordBreak: "break-word" }}>
             <div
               style={{
-                fontFamily: "Roboto, Helvetica, sans-serif",
+                fontFamily: "'Plus Jakarta Sans','Helvetica Neue',Helvetica,Arial,sans-serif",
                 fontSize: "16px",
                 fontWeight: 400,
                 lineHeight: "24px",

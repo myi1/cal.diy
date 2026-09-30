@@ -1,6 +1,7 @@
 /* eslint-disable @next/next/no-head-element */
 import BaseTable from "./BaseTable";
 import EmailBodyLogo from "./EmailBodyLogo";
+import { BRAND, RemaxHubFooter, RemaxHubHeader } from "./RemaxHubBrand";
 import EmailHead from "./EmailHead";
 import EmailScheduledBodyHeaderContent from "./EmailScheduledBodyHeaderContent";
 import EmailSchedulingBodyDivider from "./EmailSchedulingBodyDivider";
@@ -28,8 +29,8 @@ export const BaseEmailHtml = (props: {
   return (
     <Html>
       <EmailHead title={props.subject} />
-      <body style={{ wordSpacing: "normal", backgroundColor: "#F3F4F6" }}>
-        <div style={{ backgroundColor: "#F3F4F6" }}>
+      <body style={{ wordSpacing: "normal", backgroundColor: BRAND.soft }}>
+        <div style={{ backgroundColor: BRAND.soft }}>
           <RawHtml
             html={`<!--[if mso | IE]><table align="center" border="0" cellpadding="0" cellspacing="0" class="" style="width:600px;" width="600" ><tr><td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]-->`}
           />
@@ -54,10 +55,11 @@ export const BaseEmailHtml = (props: {
               margin: "0px auto",
               maxWidth: 600,
               borderRadius: "8px",
-              border: "1px solid #E5E7EB",
+              border: `1px solid ${BRAND.rule}`,
               padding: "2px",
               backgroundColor: "#FFFFFF",
             }}>
+            <RemaxHubHeader />
             {props.headerType && (
               <EmailSchedulingBodyHeader headerType={props.headerType} headStyles={{ border: 0 }} />
             )}
@@ -110,7 +112,7 @@ export const BaseEmailHtml = (props: {
                       <td align="left" style={{ fontSize: 0, padding: "10px 25px", wordBreak: "break-word" }}>
                         <div
                           style={{
-                            fontFamily: "Roboto, Helvetica, sans-serif",
+                            fontFamily: "'Plus Jakarta Sans','Helvetica Neue',Helvetica,Arial,sans-serif",
                             fontSize: 16,
                             fontWeight: 500,
                             lineHeight: 1,
@@ -179,7 +181,7 @@ export const BaseEmailHtml = (props: {
                               style={{ fontSize: 0, padding: "10px 25px", wordBreak: "break-word" }}>
                               <div
                                 style={{
-                                  fontFamily: "Roboto, Helvetica, sans-serif",
+                                  fontFamily: "'Plus Jakarta Sans','Helvetica Neue',Helvetica,Arial,sans-serif",
                                   fontSize: 13,
                                   lineHeight: 1,
                                   textAlign: "left",
@@ -197,6 +199,7 @@ export const BaseEmailHtml = (props: {
               </Row>
             </div>
           </div>
+          <RemaxHubFooter />
           {!Boolean(props.hideLogo) && <EmailBodyLogo />}
           <RawHtml html="<!--[if mso | IE]></td></tr></table><![endif]-->" />
         </div>

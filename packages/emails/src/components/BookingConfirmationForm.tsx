@@ -8,7 +8,7 @@ export const BookingConfirmationForm = (props: { action: string; children: React
           background: "#FFFFFF",
           border: "",
           color: "#ffffff",
-          fontFamily: "Roboto, Helvetica, sans-serif",
+          fontFamily: "'Plus Jakarta Sans','Helvetica Neue',Helvetica,Arial,sans-serif",
           fontSize: "0.875rem",
           fontWeight: 500,
           lineHeight: "1rem",
@@ -27,7 +27,7 @@ export const BookingConfirmationForm = (props: { action: string; children: React
         <label
           style={{
             color: "#3e3e3e",
-            fontFamily: "Roboto, Helvetica, sans-serif",
+            fontFamily: "'Plus Jakarta Sans','Helvetica Neue',Helvetica,Arial,sans-serif",
             fontSize: "0.875rem",
             fontWeight: 500,
             lineHeight: "1rem",

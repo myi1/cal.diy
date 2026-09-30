@@ -101,7 +101,7 @@ export const V2BaseEmailHtml = (props: {
                       }}>
                       <div
                         style={{
-                          fontFamily: "Roboto, Helvetica, sans-serif",
+                          fontFamily: "'Plus Jakarta Sans','Helvetica Neue',Helvetica,Arial,sans-serif",
                           fontSize: 16,
                           fontWeight: 500,
                           lineHeight: 1,
@@ -165,7 +165,7 @@ export const V2BaseEmailHtml = (props: {
                             style={{ fontSize: 0, padding: "10px 25px", wordBreak: "break-word" }}>
                             <div
                               style={{
-                                fontFamily: "Roboto, Helvetica, sans-serif",
+                                fontFamily: "'Plus Jakarta Sans','Helvetica Neue',Helvetica,Arial,sans-serif",
                                 fontSize: 13,
                                 lineHeight: 1,
                                 textAlign: "left",

@@ -27,6 +27,8 @@ REMAX Hub's booking layer: a self-hosted Cal.diy fork. Leads never use Cal's own
 5. `REMAXHUB_ENABLED_APPS` (seed-app-store keeps only these apps enabled; cron guard as backup).
 6. Restriction schedules apply to slots (upstream hard-disabled them), and slot filtering is DST-safe (epoch-ms comparisons; UTC date stepping).
 7. `REMAXHUB_ORGANIZER_ICS=off`: emails to the host carry no .ics. Zoho Mail imported it, duplicating the Zoho event and leaving stale copies after reschedules and cancellations.
+8. Emails: REMAX Hub branding and UK English; no emails to `@no-email.remaxhub.ae` leads; silent handover (`[handover]` cancellation reason, `hub_handover` booking metadata); per-side titles (`{HOST/ATTENDEE}` resolved for each recipient in `packages/emails/lib/attendeeTitle.ts`).
+9. Confirmation emails still go out when every calendar write fails, if the location is a URL (upstream sent none, so a Zoho blip left the buyer without a confirmation).
 
 ## Deploy a new image
 

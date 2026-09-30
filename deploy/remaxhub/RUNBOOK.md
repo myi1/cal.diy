@@ -32,10 +32,17 @@ REMAX Hub's booking layer: a self-hosted Cal.diy fork. Leads never use Cal's own
 
 1. Push to `remaxhub` (or run the workflow). Wait for both jobs to go green. Tag = `sha-<first 10 chars of the commit>`.
 2. Back up: `ssh root@100.108.208.27 'CALDIY_SERVICE_UUID=on6gp9ggl5b33kc1uutzwkkd /usr/local/bin/caldiy-backup.sh'`.
-3. **Pre-pull on the box first**: `docker pull ghcr.io/myi1/caldiy-web:<tag> && docker pull ghcr.io/myi1/caldiy-api:<tag>`. Coolify deletes unused images when it stops the stack, and the web image is ~1.2 GB, so pulling after the stop meant ~10 min of downtime on 29 Sep.
-4. Push the compose and tag through the Coolify API: explode the YAML anchors (`yq --yaml-fix-merge-anchor-to-spec=true 'explode(.) | del(."x-cal-common")' deploy/remaxhub/docker-compose.yml`), then `PATCH /services/<uuid>` with `docker_compose_raw` (base64) **and** `urls` (web → `https://book.remaxhub.ae:3000`, api → `https://book-api.remaxhub.ae:80`), and `PATCH /services/<uuid>/envs {"key":"IMAGE_TAG","value":"<tag>"}`.
-5. `GET /services/<uuid>/restart` makes Coolify rewrite `/data/coolify/services/<uuid>/{docker-compose.yml,.env}`. **Coolify's restart removes the containers and doesn't start them** (every time so far). Once `.env` shows the new tag, run `cd /data/coolify/services/<uuid> && docker compose -p <uuid> up -d`.
-6. Check: the containers are on the new tag, web is healthy, `select count(*) from users` is unchanged, only `zohocalendar` is enabled in `"App"`, and a slots request answers.
+3. Record the tag in Coolify's database so its config stays true: `PATCH /services/<uuid>/envs {"key":"IMAGE_TAG","value":"<tag>"}`. If the compose changed, also `PATCH /services/<uuid>` with `docker_compose_raw` (base64, YAML anchors exploded with `yq --yaml-fix-merge-anchor-to-spec=true 'explode(.) | del(."x-cal-common")'`) **and** `urls` (web `https://book.remaxhub.ae:3000`, api `https://book-api.remaxhub.ae:80`).
+4. **Do not use Coolify's Restart/Deploy for a new image.** It deletes every image not in use at that moment, including ones you just pre-pulled, and then removes the containers without starting them (30 Sep: 28 min of pre-pull thrown away and ~35 min down). Instead, on the box:
+   ```sh
+   S=on6gp9ggl5b33kc1uutzwkkd; D=/data/coolify/services/$S
+   sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=<tag>/" $D/.env          # same value as in Coolify's DB
+   cd $D && docker compose -p $S pull web api                 # site stays up while this runs
+   docker compose -p $S up -d web api                         # swaps only web + api, ~1 min down
+   ```
+   If the compose itself changed, apply it through Coolify once (step 3) and copy Coolify's generated `docker-compose.yml` only when the new images are already running, or accept the Coolify path's downtime.
+5. Run long pulls detached (`setsid nohup … &`); an SSH timeout or `pkill -f` whose pattern matches your own command line will kill them.
+6. Check: both containers on the new tag, web healthy, `select count(*) from users` is unchanged, only `zohocalendar` is enabled in `"App"`, and a slots request answers.
 
 Rollback: set `IMAGE_TAG` back to the previous tag and repeat 3–6. Restore the dump only if the new version ran a database migration that the old one can't read.
 

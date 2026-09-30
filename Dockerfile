@@ -1,3 +1,13 @@
+# remaxhub: only the dependency manifests, so the yarn install layer below is reused until a package.json
+# or yarn.lock actually changes (upstream copied all sources first, reinstalling on every commit).
+FROM --platform=$BUILDPLATFORM node:22 AS manifests
+WORKDIR /src
+COPY apps/web ./apps/web
+COPY apps/api/v2 ./apps/api/v2
+COPY packages ./packages
+RUN mkdir -p /out && find apps packages -name package.json -not -path "*/node_modules/*" \
+    | while read -r f; do mkdir -p "/out/$(dirname "$f")" && cp "$f" "/out/$f"; done
+
 FROM --platform=$BUILDPLATFORM node:22 AS builder
 
 WORKDIR /calcom
@@ -47,19 +57,27 @@ ENV NEXT_PUBLIC_WEBAPP_URL=http://NEXT_PUBLIC_WEBAPP_URL_PLACEHOLDER \
 
 COPY package.json yarn.lock .yarnrc.yml playwright.config.ts turbo.json i18n.json ./
 COPY .yarn ./.yarn
+COPY --from=manifests /out/ ./
+
+# The root postinstall builds workspace packages from source, which isn't copied yet: run it after.
+RUN yarn config set httpTimeout 1200000
+RUN --mount=type=cache,id=caldiy-yarn,target=/calcom/.yarn/cache \
+    node -e "const f='package.json',p=require('./'+f);delete p.scripts.postinstall;require('fs').writeFileSync(f,JSON.stringify(p,null,2))" \
+    && HUSKY=0 yarn install
+
+COPY package.json ./
 COPY apps/web ./apps/web
 COPY apps/api/v2 ./apps/api/v2
 COPY packages ./packages
-
-RUN yarn config set httpTimeout 1200000
-RUN npx turbo prune --scope=@calcom/web --scope=@calcom/trpc --docker
-RUN yarn install
+RUN HUSKY=0 yarn turbo run post-install
 # Build and make embed servable from web/public/embed folder
 RUN yarn workspace @calcom/trpc run build
 RUN yarn --cwd packages/embeds/embed-core workspace @calcom/embed-core run build
 RUN yarn --cwd apps/web workspace @calcom/web run copy-app-store-static
-RUN yarn --cwd apps/web workspace @calcom/web run build
-RUN rm -rf node_modules/.cache .yarn/cache apps/web/.next/cache
+# The Next.js build cache survives between builds (cache mount), so small changes rebuild faster.
+RUN --mount=type=cache,id=caldiy-next,target=/calcom/apps/web/.next/cache \
+    yarn --cwd apps/web workspace @calcom/web run build
+RUN rm -rf node_modules/.cache .yarn/cache
 
 FROM node:22 AS builder-two
 

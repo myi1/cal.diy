@@ -18,9 +18,12 @@ start=$SECONDS
 docker run -d --name ${N}-web "${common[@]}" -e DATABASE_HOST=${N}-pg:5432 -e REMAXHUB_ENABLED_APPS=zohocalendar \
   -p 13000:3000 ghcr.io/$OWNER/caldiy-web:$TAG >/dev/null
 code=000
-for _ in $(seq 120); do code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:13000/auth/login); [ "$code" = 200 ] && break; sleep 2; done
-[ "$code" = 200 ] && ok "web /auth/login 200 after $((SECONDS-start))s" || { bad "web /auth/login $code"; docker logs ${N}-web 2>&1 | tail -25; }
+for _ in $(seq 120); do code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:13000/auth/forgot-password); [ "$code" = 200 ] && break; sleep 2; done
+[ "$code" = 200 ] && ok "web up after $((SECONDS-start))s" || { bad "web not up ($code)"; docker logs ${N}-web 2>&1 | tail -25; }
 q() { docker exec ${N}-pg psql -U calcom -d calcom -tAc "$1"; }
+# With no users Cal redirects /auth/login to first-run /auth/setup; add one, as production has.
+q "insert into users (uuid, email, username, name, role) values (gen_random_uuid(), 'smoke@example.com', 'smoke', 'Smoke', 'USER')" >/dev/null
+c=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:13000/auth/login); [ "$c" = 200 ] && ok "web /auth/login 200" || bad "web /auth/login $c"
 m=$(q 'select count(*) from _prisma_migrations where finished_at is not null'); [ "${m:-0}" -gt 500 ] && ok "migrations applied: $m" || bad "migrations: $m"
 a=$(q 'select count(*) from "App"'); e=$(q 'select string_agg(slug, $$,$$) from "App" where enabled'); [ "${a:-0}" -gt 50 ] && ok "seed: $a apps, enabled: ${e:-none}" || bad "seed: $a apps"
 for path in /auth/forgot-password /api/auth/providers /emails/remax-hub-logo.png; do

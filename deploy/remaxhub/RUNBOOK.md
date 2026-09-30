@@ -29,6 +29,7 @@ REMAX Hub's booking layer: a self-hosted Cal.diy fork. Leads never use Cal's own
 7. `REMAXHUB_ORGANIZER_ICS=off`: emails to the host carry no .ics. Zoho Mail imported it, duplicating the Zoho event and leaving stale copies after reschedules and cancellations.
 8. Emails: REMAX Hub branding and UK English; no emails to `@no-email.remaxhub.ae` leads; silent handover (`[handover]` cancellation reason, `hub_handover` booking metadata); per-side titles (`{HOST/ATTENDEE}` resolved for each recipient in `packages/emails/lib/attendeeTitle.ts`).
 9. Confirmation emails still go out when every calendar write fails, if the location is a URL (upstream sent none, so a Zoho blip left the buyer without a confirmation).
+10. API v2 logs never carry credentials or personal data: the `Authorization` header is logged as `Bearer [REDACTED]`, and request/response/error bodies only as their top-level keys and size (`apps/api/v2/src/lib/filterReqHeaders.ts`). Before 30 Sep the hub-bot key and full booking bodies were in the API container logs.
 
 ## Deploy a new image
 

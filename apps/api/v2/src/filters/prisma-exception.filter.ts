@@ -1,5 +1,5 @@
 import { extractUserContext } from "@/lib/extract-user-context";
-import { filterReqHeaders } from "@/lib/filterReqHeaders";
+import { filterReqHeaders, summarizeBody } from "@/lib/filterReqHeaders";
 import type { ArgumentsHost, ExceptionFilter } from "@nestjs/common";
 import { Catch, HttpStatus, Logger } from "@nestjs/common";
 import { Request } from "express";
@@ -41,7 +41,7 @@ export class PrismaExceptionFilter implements ExceptionFilter {
     const userContext = extractUserContext(request);
     this.logger.error(`PrismaError: ${error.message}`, {
       error,
-      body: request.body,
+      body: summarizeBody(request.body),
       headers: filterReqHeaders(request.headers),
       url: request.url,
       method: request.method,

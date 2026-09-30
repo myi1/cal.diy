@@ -1,4 +1,5 @@
 import { extractUserContext } from "@/lib/extract-user-context";
+import { summarizeBody } from "@/lib/filterReqHeaders";
 import { CallHandler, ExecutionContext, Injectable, NestInterceptor, Logger } from "@nestjs/common";
 import { Request, Response } from "express";
 import { tap } from "rxjs/operators";
@@ -23,23 +24,13 @@ export class ResponseInterceptor implements NestInterceptor {
         const { statusCode } = response;
         const responseTime = Date.now() - startTime;
 
-        let jsonBodyString = "{}";
-
-        try {
-          if (data && typeof data === "object") {
-            jsonBodyString = JSON.stringify(data);
-          }
-        } catch (err) {
-          this.logger.error("Could not parse request body");
-        }
-
         this.logger.log("Outgoing Response", {
           requestId,
           method,
           url,
           statusCode,
           responseTime,
-          responseBody: jsonBodyString,
+          responseBody: summarizeBody(data),
           timestamp: new Date().toISOString(),
           ...userContext,
         });

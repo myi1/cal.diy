@@ -1,5 +1,5 @@
 import { extractUserContext } from "@/lib/extract-user-context";
-import { filterReqHeaders } from "@/lib/filterReqHeaders";
+import { filterReqHeaders, summarizeBody } from "@/lib/filterReqHeaders";
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, Logger } from "@nestjs/common";
 import { Request } from "express";
 
@@ -20,7 +20,7 @@ export class HttpExceptionFilter implements ExceptionFilter<HttpException> {
     const userContext = extractUserContext(request);
     this.logger.error(`Http Exception Filter: ${exception?.message}`, {
       exception,
-      body: request.body,
+      body: summarizeBody(request.body),
       headers: filterReqHeaders(request.headers),
       url: request.url,
       method: request.method,

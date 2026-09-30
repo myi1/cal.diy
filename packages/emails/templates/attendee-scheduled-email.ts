@@ -4,6 +4,7 @@ import { TimeFormat } from "@calcom/lib/timeFormat";
 import type { CalendarEvent, Person } from "@calcom/types/Calendar";
 import type { TFunction } from "i18next";
 import { default as cloneDeep } from "lodash/cloneDeep";
+import { getAttendeeFacingTitle } from "../lib/attendeeTitle";
 import generateIcsFile, { GenerateIcsRole } from "../lib/generateIcsFile";
 import renderEmail from "../src/renderEmail";
 import BaseEmail from "./_base-email";
@@ -34,6 +35,11 @@ export default class AttendeeScheduledEmail extends BaseEmail {
     this.name = "SEND_BOOKING_CONFIRMATION";
     this.attendee = attendee;
     this.t = attendee.language.translate;
+  }
+
+  protected async beforeRender(): Promise<void> {
+    const title = await getAttendeeFacingTitle(this.calEvent, this.attendee).catch(() => null);
+    if (title) this.calEvent = { ...this.calEvent, title };
   }
 
   protected async getNodeMailerPayload(): Promise<Record<string, unknown>> {

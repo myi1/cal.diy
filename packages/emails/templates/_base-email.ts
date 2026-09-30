@@ -33,7 +33,11 @@ export default class BaseEmail {
   // remaxhub: when true the .ics invite is left off. Set for emails to the host (see OrganizerScheduledEmail).
   protected omitIcalEvent = false;
 
+  // remaxhub: hook for per-recipient adjustments that need async work (see AttendeeScheduledEmail).
+  protected async beforeRender(): Promise<void> {}
+
   protected async getPayloadForSending(): Promise<Record<string, unknown>> {
+    await this.beforeRender();
     const payload = await this.getNodeMailerPayload();
     if (!this.omitIcalEvent) return payload;
     const { icalEvent: _icalEvent, ...withoutIcalEvent } = payload;

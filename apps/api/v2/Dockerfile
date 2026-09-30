@@ -36,23 +36,35 @@ RUN yarn workspace @calcom/api-v2 run generate-schemas
 RUN yarn workspace @calcom/api-v2 run build:docker
 RUN yarn workspace @calcom/api-v2 run build
 
-# remaxhub: production dependencies only. Native builds are already done in place, so scripts stay off
-# (the root postinstall and workspace build steps need dev tools that are being removed).
-FROM build AS prod-deps
-RUN --mount=type=cache,id=caldiy-yarn-alpine,target=/calcom/.yarn/cache \
-    node -e "const f='package.json',p=require('./'+f);delete p.scripts.postinstall;require('fs').writeFileSync(f,JSON.stringify(p,null,2))" \
-    && HUSKY=0 YARN_ENABLE_SCRIPTS=false yarn workspaces focus @calcom/api-v2 --production
+# remaxhub: copy only what the compiled API actually loads, traced from its entry point with the file
+# tracer Next.js ships (the same technique as Next's standalone output). "Production dependencies" misses
+# modules that platform-libraries leaves external but only lists as dev dependencies.
+FROM build AS traced
+RUN node -e ' \
+  const { nodeFileTrace } = require("next/dist/compiled/@vercel/nft"); \
+  const fs = require("fs"), path = require("path"); \
+  (async () => { \
+    const entry = "/calcom/apps/api/v2/dist/apps/api/v2/src/main.js"; \
+    const { fileList, warnings } = await nodeFileTrace([entry], { base: "/calcom", processCwd: "/calcom/apps/api/v2" }); \
+    for (const f of fileList) { \
+      const src = path.join("/calcom", f), dst = path.join("/out", f); \
+      fs.mkdirSync(path.dirname(dst), { recursive: true }); \
+      const st = fs.lstatSync(src); \
+      if (st.isSymbolicLink()) { if (!fs.existsSync(dst)) fs.symlinkSync(fs.readlinkSync(src), dst); } \
+      else if (st.isFile()) fs.copyFileSync(src, dst); \
+    } \
+    console.log("traced files:", fileList.size); \
+  })().catch((e) => { console.error(e); process.exit(1); });'
+# Loaded by dynamic path at run time, so the tracer can't see them.
+RUN mkdir -p /out/packages/i18n && cp -r /calcom/packages/i18n/locales /out/packages/i18n/locales
 
-# remaxhub: slim runtime: the compiled API, the workspace packages it links to, and production deps.
+# remaxhub: slim runtime: only the traced files.
 FROM node:22-alpine AS runtime
 RUN if [ -e /usr/lib/libssl.so.3 ] && [ ! -e /lib/libssl.so.3 ]; then ln -s /usr/lib/libssl.so.3 /lib/libssl.so.3; fi
 WORKDIR /calcom
 ENV NODE_ENV="production" \
     USE_POOL="true"
-COPY --from=prod-deps /calcom/package.json ./package.json
-COPY --from=prod-deps /calcom/node_modules ./node_modules
-COPY --from=prod-deps /calcom/packages ./packages
-COPY --from=prod-deps /calcom/apps/api/v2 ./apps/api/v2
+COPY --from=traced /out/ ./
 WORKDIR /calcom/apps/api/v2
 
 EXPOSE 80

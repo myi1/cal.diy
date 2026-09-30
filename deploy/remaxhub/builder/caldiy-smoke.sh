@@ -23,7 +23,7 @@ for _ in $(seq 120); do code=$(curl -s -o /dev/null -w '%{http_code}' http://loc
 q() { docker exec ${N}-pg psql -U calcom -d calcom -tAc "$1"; }
 m=$(q 'select count(*) from _prisma_migrations where finished_at is not null'); [ "${m:-0}" -gt 500 ] && ok "migrations applied: $m" || bad "migrations: $m"
 a=$(q 'select count(*) from "App"'); e=$(q 'select string_agg(slug, $$,$$) from "App" where enabled'); [ "${a:-0}" -gt 50 ] && ok "seed: $a apps, enabled: ${e:-none}" || bad "seed: $a apps"
-for path in /apps/zohocalendar /api/auth/providers /emails/remax-hub-logo.png; do
+for path in /auth/forgot-password /api/auth/providers /emails/remax-hub-logo.png; do
   c=$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:13000$path"); [ "$c" = 200 ] && ok "web $path 200" || bad "web $path $c"
 done
 

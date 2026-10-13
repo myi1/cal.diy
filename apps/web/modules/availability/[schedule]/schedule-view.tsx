@@ -15,6 +15,8 @@ import { trpc } from "@calcom/trpc/react";
 import useMeQuery from "@calcom/trpc/react/hooks/useMeQuery";
 import { showToast } from "@calcom/ui/components/toast";
 
+import { HubHours, hubManagedSchedule } from "../HubHours";
+
 type PageProps = {
   scheduleData: RouterOutputs["viewer"]["availability"]["schedule"]["get"];
   travelSchedulesData: RouterOutputs["viewer"]["travelSchedules"]["get"];
@@ -104,6 +106,11 @@ export const AvailabilitySettingsWebWrapper = ({
       router.push("/availability");
     },
   });
+
+  // Hub-owned hours are read-only here. Keep this after every hook above.
+  if (hubManagedSchedule(scheduleId)) {
+    return <HubHours hours={schedule.schedule} zone={schedule.timeZone} />;
+  }
 
   return (
     <AvailabilitySettings

@@ -17,6 +17,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { HubHoursBanner, HubManagedScheduleRow, hubManagedSchedule } from "./HubHours";
+
 type AvailabilityListProps = {
   availabilities: RouterOutputs["viewer"]["availability"]["list"];
 };
@@ -134,24 +136,33 @@ export function AvailabilityList({ availabilities }: AvailabilityListProps) {
         </div>
       ) : (
         <>
+          {availabilities.schedules.some((schedule) => hubManagedSchedule(schedule.id)) && <HubHoursBanner />}
           <div className="border-subtle bg-default overflow-hidden rounded-md border">
             <ul className="divide-subtle divide-y" data-testid="schedules" ref={animationParentRef}>
-              {availabilities.schedules.map((schedule) => (
-                <ScheduleListItem
-                  redirectUrl={`/availability/${schedule.id}`}
-                  displayOptions={{
-                    hour12: user?.timeFormat ? user.timeFormat === 12 : undefined,
-                    timeZone: user?.timeZone,
-                    weekStart: user?.weekStart || "Sunday",
-                  }}
-                  key={schedule.id}
-                  schedule={schedule}
-                  isDeletable={availabilities.schedules.length !== 1}
-                  updateDefault={updateMutation.mutate}
-                  deleteFunction={deleteMutation.mutate}
-                  duplicateFunction={duplicateMutation.mutate}
-                />
-              ))}
+              {availabilities.schedules.map((schedule) =>
+                hubManagedSchedule(schedule.id) ? (
+                  <HubManagedScheduleRow
+                    key={schedule.id}
+                    redirectUrl={`/availability/${schedule.id}`}
+                    schedule={schedule}
+                  />
+                ) : (
+                  <ScheduleListItem
+                    redirectUrl={`/availability/${schedule.id}`}
+                    displayOptions={{
+                      hour12: user?.timeFormat ? user.timeFormat === 12 : undefined,
+                      timeZone: user?.timeZone,
+                      weekStart: user?.weekStart || "Sunday",
+                    }}
+                    key={schedule.id}
+                    schedule={schedule}
+                    isDeletable={availabilities.schedules.length !== 1}
+                    updateDefault={updateMutation.mutate}
+                    deleteFunction={deleteMutation.mutate}
+                    duplicateFunction={duplicateMutation.mutate}
+                  />
+                )
+              )}
             </ul>
           </div>
           <div className="text-default mb-16 mt-4 block text-center text-sm">

@@ -49,6 +49,16 @@ REMAX Hub's booking layer: a self-hosted Cal.diy fork. Leads never use Cal's own
 
 Rollback: set `IMAGE_TAG` back to the previous tag and repeat 3–6. Restore the dump only if the new version ran a database migration that the old one can't read.
 
+## Hub-owned hours
+
+For advisors whose working hours the Hub writes, the Cal.diy availability pages show the hours read-only: "Hours are set in the Hub. Change your shifts and blocks in Settings → You → Schedule." Nothing else about the schedule API changes; the Hub keeps writing through the advisor's key.
+
+- **Turn it on:** set `NEXT_PUBLIC_HUB_MANAGED_SCHEDULE_IDS` to a comma-separated list of schedule ids, e.g. `3,14,20`. List only verified advisors' **default** schedule ids. Never list restriction schedules 7-12 (the code refuses them even if listed). Default is empty: nothing is managed and every page behaves as upstream.
+- **It is a build-time variable** (`NEXT_PUBLIC_*` is baked in), so changing it needs a rebuild of the web image, not just a restart. Pass it as a build arg like the other `NEXT_PUBLIC_*` values in item 4 above, then follow "Deploy a new image".
+- **Roll back:** empty the variable and rebuild, or set `IMAGE_TAG` back to the previous tag. Advisors' schedules and the API are untouched either way.
+- **Display notes:** times are in the schedule's own zone (Asia/Dubai once the Hub projection is approved). A day ending at midnight is stored as `23:59` (Cal rejects `24:00`) and is shown as `24:00`; a `00:00-00:00` date override is shown as "Unavailable all day".
+- **Deploying needs Yahya's yes**, with a backup first and the image tag recorded. This is UI only; it does not make Cal follow Hub blocks, so `routing.cal.enabled` still waits for each advisor key's own proof.
+
 ## Upgrading from upstream
 
 ```bash

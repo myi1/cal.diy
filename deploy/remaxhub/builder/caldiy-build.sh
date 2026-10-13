@@ -29,6 +29,10 @@ echo "$(date -u +%FT%TZ) building $TAG ($(git log -1 --format=%s))" | tee -a "$L
 [ "${NO_PUSH:-}" = 1 ] || gh auth token | docker login ghcr.io -u "$OWNER" --password-stdin >/dev/null
 MOVE_TAG=""; [ "$(git rev-parse origin/remaxhub)" = "$SHA" ] && MOVE_TAG=1
 
+# Remember the ids of the last pushed web build: changing them must rebuild web even when no file changed.
+MANAGED_IDS="${HUB_MANAGED_SCHEDULE_IDS:-}"
+MANAGED_FILE=/root/caldiy-last-managed-ids
+LAST_MANAGED=$(cat "$MANAGED_FILE" 2>/dev/null || true)
 WEB_ARGS=(
   --build-arg NEXT_PUBLIC_WEBAPP_URL=https://book.remaxhub.ae
   --build-arg NEXT_PUBLIC_API_V2_URL=https://book-api.remaxhub.ae/api/v2
@@ -40,6 +44,9 @@ WEB_ARGS=(
   --build-arg "NEXT_PUBLIC_COMPANY_NAME=REMAX Hub"
   --build-arg NEXT_PUBLIC_SUPPORT_MAIL_ADDRESS=hub@remax.ae
   --build-arg NEXT_PUBLIC_WEBSITE_URL=https://remaxhub.ae
+  # Hub-owned schedule ids (comma-separated), empty = none. Set in the environment of the build:
+  #   HUB_MANAGED_SCHEDULE_IDS=3,14 caldiy-build.sh <commit> web
+  --build-arg "NEXT_PUBLIC_HUB_MANAGED_SCHEDULE_IDS=$MANAGED_IDS"
 )
 LABELS=(--label "org.opencontainers.image.source=https://github.com/$OWNER/cal.diy" --label "org.opencontainers.image.revision=$SHA")
 
@@ -68,6 +75,7 @@ SHARED=(yarn.lock package.json .yarnrc.yml .yarn turbo.json i18n.json packages)
 changed() { # image -> exit 0 if it must be rebuilt
   [ -n "${FORCE:-}" ] || [ -z "$LAST" ] || [ "${NO_PUSH:-}" = 1 ] && return 0
   git cat-file -e "$LAST^{commit}" 2>/dev/null || return 0
+  if [ "$1" = web ] && [ "$MANAGED_IDS" != "$LAST_MANAGED" ]; then return 0; fi
   if [ "$1" = web ]; then set -- "${SHARED[@]}" Dockerfile apps/web scripts
   else set -- "${SHARED[@]}" apps/api/v2; fi
   ! git diff --quiet "$LAST" "$SHA" -- "$@"
@@ -94,4 +102,5 @@ fi
 # Keep the cache from growing without bound (~100 GB is plenty for both images).
 docker builder prune -f --keep-storage 100GB >/dev/null 2>&1 || true
 [ "${NO_PUSH:-}" = 1 ] || [ -n "$ONLY" ] || echo "$SHA" > "$LAST_FILE"
+[ "${NO_PUSH:-}" = 1 ] || [ "$ONLY" = api ] || echo "$MANAGED_IDS" > "$MANAGED_FILE"
 echo "$(date -u +%FT%TZ) done $TAG" | tee -a "$LOG"

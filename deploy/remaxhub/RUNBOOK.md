@@ -51,12 +51,23 @@ Rollback: set `IMAGE_TAG` back to the previous tag and repeat 3–6. Restore the
 
 ## Hub-owned hours
 
-For advisors whose working hours the Hub writes, the Cal.diy availability pages show the hours read-only: "Hours are set in the Hub. Change your shifts and blocks in Settings → You → Schedule." Nothing else about the schedule API changes; the Hub keeps writing through the advisor's key.
+For advisors whose working hours the Hub writes, the Cal.diy availability pages show the hours read-only: "Hours are set in the Hub. Change your shifts and blocks in Settings → You → Schedule." The Hub keeps writing through the advisor's key on API v2, which is not changed.
 
 - **Turn it on:** set `NEXT_PUBLIC_HUB_MANAGED_SCHEDULE_IDS` to a comma-separated list of schedule ids, e.g. `3,14,20`. List only verified advisors' **default** schedule ids. Never list restriction schedules 7-12 (the code refuses them even if listed). Default is empty: nothing is managed and every page behaves as upstream.
-- **It is a build-time variable** (`NEXT_PUBLIC_*` is baked in), so changing it needs a rebuild of the web image, not just a restart. Pass it as a build arg like the other `NEXT_PUBLIC_*` values in item 4 above, then follow "Deploy a new image".
-- **Roll back:** empty the variable and rebuild, or set `IMAGE_TAG` back to the previous tag. Advisors' schedules and the API are untouched either way.
-- **Display notes:** times are in the schedule's own zone (Asia/Dubai once the Hub projection is approved). A day ending at midnight is stored as `23:59` (Cal rejects `24:00`) and is shown as `24:00`; a `00:00-00:00` date override is shown as "Unavailable all day".
+- **It is a build-time variable** (`NEXT_PUBLIC_*` is baked into the bundles), so changing it needs a rebuild of the web image, not a restart or a Coolify env change (Coolify's env does nothing for it). It is a `ARG`/`ENV` in the `Dockerfile` and is passed by both build paths, empty by default:
+  - Windows builder: `ssh win "wsl -d caldiy-builder -u root -- env HUB_MANAGED_SCHEDULE_IDS=3,14,20 /root/caldiy-build.sh <sha> web"`. The script remembers the last ids in `/root/caldiy-last-managed-ids` and rebuilds web when they change, even if no file did.
+  - GitHub fallback: set the repository variable `HUB_MANAGED_SCHEDULE_IDS` (Settings → Secrets and variables → Actions → Variables) before running "REMAX Hub images".
+  Then follow "Deploy a new image".
+- **Check the build before deploying** (a build that manages nothing looks identical on the surface). Build with `NO_PUSH=1` first, then confirm the ids are inlined next to the Hub-hours code in the built bundles; an empty result means the ids did not reach the build:
+  ```sh
+  docker run --rm --entrypoint sh ghcr.io/myi1/caldiy-web:<tag> -c \
+    'grep -rlF "Hours are set in the Hub" /calcom/apps/web/.next/static /calcom/apps/web/.next/server | xargs grep -lF "\"3,14,20\""'
+  ```
+  Use the exact ids string you built with. After deploying, open `/availability` as a listed advisor and confirm the banner and read-only page.
+- **Roll back:** build again with the variable empty (or set `IMAGE_TAG` back to the previous tag) and repeat "Deploy a new image". Advisors' schedules and the API are untouched either way.
+- **What is blocked for a managed schedule:** the web editor and the "Set as default" menu item (hidden); the tRPC schedule update (refused with 403 "Hours are set in the Hub.", which also covers onboarding's setup-availability step, where the page shows the hours instead); making another schedule the default while a managed one is the default; the Settings → General time-zone change and the travel-schedule cron no longer rewrite a managed default schedule's `timeZone` (the Hub sets it, Asia/Dubai after import approval).
+- **Known gaps:** (1) An advisor can still point an event type's availability tab at a different, unmanaged schedule; guarding that means changing the event-type update path and its UI, which is invasive, so it is left as is (the Hub's routing does not depend on event-type schedules; revisit if advisors do it). (2) The managed-ids check is per build, so a schedule deleted and recreated gets a new id and must be re-listed. (3) The UI is not API authorisation: a leaked advisor API key can still change that advisor's schedule through API v2, which is what the Hub itself uses.
+- **Display notes:** times are in the schedule's own zone (or the user's zone when the schedule has none). A day ending at midnight is stored as `23:59` (Cal rejects `24:00`) and is shown as `24:00`; a `00:00-00:00` date override is shown as "Unavailable all day".
 - **Deploying needs Yahya's yes**, with a backup first and the image tag recorded. This is UI only; it does not make Cal follow Hub blocks, so `routing.cal.enabled` still waits for each advisor key's own proof.
 
 ## Upgrading from upstream

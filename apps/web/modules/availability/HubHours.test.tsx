@@ -122,6 +122,29 @@ describe("list view pieces", () => {
     expect(html).not.toMatch(/delete|duplicate|make default/i);
   });
 
+  it("keeps the Default badge, sorts rows by day and falls back to the user's zone", () => {
+    const html = renderToStaticMarkup(
+      <HubManagedScheduleRow
+        schedule={{
+          id: 3,
+          name: "Working hours",
+          isDefault: true,
+          timeZone: null,
+          availability: [
+            { days: [5], startTime: t("10:00"), endTime: t("14:00"), date: null },
+            { days: [1], startTime: t("09:00"), endTime: t("18:00"), date: null },
+          ],
+        }}
+        redirectUrl="/availability/3"
+        fallbackZone="Asia/Dubai"
+      />
+    );
+    expect(html).toContain("Default");
+    expect(html).toContain("(Asia/Dubai)");
+    expect(html.indexOf("Mon: 09:00–18:00")).toBeGreaterThan(-1);
+    expect(html.indexOf("Mon: 09:00–18:00")).toBeLessThan(html.indexOf("Fri: 10:00–14:00"));
+  });
+
   it("leaves unmanaged schedules to the existing list item", () => {
     vi.stubEnv("NEXT_PUBLIC_HUB_MANAGED_SCHEDULE_IDS", "3");
     const unmanaged = [1, 2, 4, 7].filter((id) => !hubManagedSchedule(id));

@@ -122,6 +122,9 @@ export function AvailabilityList({ availabilities }: AvailabilityListProps) {
 
   const [animationParentRef] = useAutoAnimate<HTMLUListElement>();
 
+  // Hub-owned hours stay the default schedule, so "Set as default" is hidden on the other rows.
+  const anyHubManaged = availabilities.schedules.some((schedule) => hubManagedSchedule(schedule.id));
+
   return (
     <>
       {availabilities.schedules.length === 0 ? (
@@ -136,7 +139,7 @@ export function AvailabilityList({ availabilities }: AvailabilityListProps) {
         </div>
       ) : (
         <>
-          {availabilities.schedules.some((schedule) => hubManagedSchedule(schedule.id)) && <HubHoursBanner />}
+          {anyHubManaged && <HubHoursBanner />}
           <div className="border-subtle bg-default overflow-hidden rounded-md border">
             <ul className="divide-subtle divide-y" data-testid="schedules" ref={animationParentRef}>
               {availabilities.schedules.map((schedule) =>
@@ -145,6 +148,7 @@ export function AvailabilityList({ availabilities }: AvailabilityListProps) {
                     key={schedule.id}
                     redirectUrl={`/availability/${schedule.id}`}
                     schedule={schedule}
+                    fallbackZone={user?.timeZone}
                   />
                 ) : (
                   <ScheduleListItem
@@ -157,6 +161,7 @@ export function AvailabilityList({ availabilities }: AvailabilityListProps) {
                     key={schedule.id}
                     schedule={schedule}
                     isDeletable={availabilities.schedules.length !== 1}
+                    canSetDefault={!anyHubManaged}
                     updateDefault={updateMutation.mutate}
                     deleteFunction={deleteMutation.mutate}
                     duplicateFunction={duplicateMutation.mutate}

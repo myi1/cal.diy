@@ -1,23 +1,10 @@
 import Link from "next/link";
 
-// Restriction schedules 7-12 belong to call-restriction rules and are never Hub-managed.
-const RESTRICTION_SCHEDULE_IDS = [7, 8, 9, 10, 11, 12];
+import { hubManagedSchedule } from "@calcom/lib/hubManagedSchedule";
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-/**
- * True when a schedule's hours are owned by the Hub. Reads the build-time env
- * NEXT_PUBLIC_HUB_MANAGED_SCHEDULE_IDS (comma-separated schedule ids). Default empty:
- * nothing is managed. Restriction schedules 7-12 are refused even if listed.
- */
-export function hubManagedSchedule(id: number): boolean {
-  if (!Number.isInteger(id) || RESTRICTION_SCHEDULE_IDS.includes(id)) return false;
-  const listed = (process.env.NEXT_PUBLIC_HUB_MANAGED_SCHEDULE_IDS ?? "")
-    .split(",")
-    .map((x) => x.trim())
-    .filter(Boolean);
-  return listed.includes(String(id));
-}
+export { hubManagedSchedule };
 
 export type HubHoursRow = {
   days: number[];
@@ -40,6 +27,9 @@ const isFullDayOff = (row: HubHoursRow) => hhmm(row.startTime) === "00:00" && hh
 
 const dateLabel = (value: Date | string) => new Date(value).toISOString().slice(0, 10);
 
+const sortByFirstDay = <T extends { days: number[] }>(rows: T[]) =>
+  [...rows].sort((a, b) => Math.min(...a.days, 7) - Math.min(...b.days, 7));
+
 export function HubHoursBanner() {
   return (
     <div role="note" className="border-subtle bg-cal-muted text-default mb-4 rounded-md border px-4 py-3 text-sm">
@@ -50,7 +40,7 @@ export function HubHoursBanner() {
 }
 
 export function HubHours({ hours, zone }: { hours: HubHoursRow[]; zone: string }) {
-  const weekly = hours.filter((row) => !row.date);
+  const weekly = sortByFirstDay(hours.filter((row) => !row.date));
   const overrides = hours
     .filter((row) => !!row.date)
     .sort((a, b) => dateLabel(a.date as Date | string).localeCompare(dateLabel(b.date as Date | string)));
@@ -86,23 +76,36 @@ export function HubHours({ hours, zone }: { hours: HubHoursRow[]; zone: string }
 export function HubManagedScheduleRow({
   schedule,
   redirectUrl,
+  fallbackZone,
 }: {
-  schedule: { id: number; name: string; timeZone?: string | null; availability: HubHoursRow[] };
+  schedule: {
+    id: number;
+    name: string;
+    isDefault?: boolean;
+    timeZone?: string | null;
+    availability: HubHoursRow[];
+  };
   redirectUrl: string;
+  /** Shown when the schedule has no zone of its own (it then follows the user's zone). */
+  fallbackZone?: string | null;
 }) {
-  const weekly = schedule.availability.filter((row) => !row.date && row.days.length > 0);
+  const weekly = sortByFirstDay(schedule.availability.filter((row) => !row.date && row.days.length > 0));
+  const zone = schedule.timeZone || fallbackZone;
   return (
     <li>
       <div className="hover:bg-cal-muted flex items-center justify-between px-3 py-5 transition sm:px-4">
         <Link href={redirectUrl} className="grow truncate text-sm" title={schedule.name}>
-          <span className="text-emphasis truncate font-medium">{schedule.name}</span>
+          <div className="space-x-2 rtl:space-x-reverse">
+            <span className="text-emphasis truncate font-medium">{schedule.name}</span>
+            {schedule.isDefault && <span className="bg-subtle text-emphasis rounded px-1.5 py-0.5 text-xs">Default</span>}
+          </div>
           <p className="text-subtle mt-1">
             {weekly.length === 0
               ? "No weekly hours"
               : weekly
                   .map((row) => `${row.days.map((day) => DAY_NAMES[day]?.slice(0, 3)).join(", ")}: ${range(row)}`)
                   .join(" · ")}
-            {schedule.timeZone ? ` (${schedule.timeZone})` : ""}
+            {zone ? ` (${zone})` : ""}
           </p>
         </Link>
       </div>

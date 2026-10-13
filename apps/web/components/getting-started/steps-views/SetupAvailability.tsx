@@ -1,8 +1,10 @@
 import { useForm } from "react-hook-form";
 
+import { HubHours } from "@calcom/web/modules/availability/HubHours";
 import Schedule from "@calcom/web/modules/schedules/components/Schedule";
 import { DEFAULT_SCHEDULE } from "@calcom/lib/availability";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { hubManagedSchedule } from "@calcom/lib/hubManagedSchedule";
 import { trpc } from "@calcom/trpc/react";
 import type { AppRouter } from "@calcom/trpc/types/server/routers/_app";
 import { Button } from "@calcom/ui/components/button";
@@ -45,6 +47,24 @@ const SetupAvailability = (props: ISetupAvailabilityProps) => {
   };
   const createSchedule = trpc.viewer.availability.schedule.create.useMutation(mutationOptions);
   const updateSchedule = trpc.viewer.availability.schedule.update.useMutation(mutationOptions);
+  // remaxhub: Hub-owned hours are read-only here; onboarding must not rewrite them.
+  if (hubManagedSchedule(scheduleId)) {
+    return (
+      <div>
+        {queryAvailability.data && (
+          <HubHours hours={queryAvailability.data.schedule} zone={queryAvailability.data.timeZone} />
+        )}
+        <Button
+          EndIcon="arrow-right"
+          type="button"
+          className="mt-2 w-full justify-center p-2 text-sm sm:mt-8"
+          onClick={nextStep}>
+          {t("complete_profile")}
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <Form
       form={availabilityForm}

@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 
 import dayjs from "@calcom/dayjs";
 import { ScheduleRepository } from "@calcom/features/schedules/repositories/ScheduleRepository";
+import { hubManagedSchedule } from "@calcom/lib/hubManagedSchedule";
 import prisma from "@calcom/prisma";
 
 const travelScheduleSelect = {
@@ -55,14 +56,17 @@ async function postHandler(request: NextRequest) {
       });
     }
 
-    await prisma.schedule.updateMany({
-      where: {
-        id: defaultScheduleId,
-      },
-      data: {
-        timeZone: timeZone,
-      },
-    });
+    // remaxhub: the Hub sets a managed schedule's zone itself.
+    if (!hubManagedSchedule(defaultScheduleId)) {
+      await prisma.schedule.updateMany({
+        where: {
+          id: defaultScheduleId,
+        },
+        data: {
+          timeZone: timeZone,
+        },
+      });
+    }
     timeZonesChanged++;
   };
 

@@ -83,3 +83,4 @@ jobs:
             NEXT_PUBLIC_COMPANY_NAME=REMAX Hub
             NEXT_PUBLIC_SUPPORT_MAIL_ADDRESS=hub@remax.ae
             NEXT_PUBLIC_WEBSITE_URL=https://remaxhub.ae
+            NEXT_PUBLIC_HUB_MANAGED_SCHEDULE_IDS=${{ vars.HUB_MANAGED_SCHEDULE_IDS }}

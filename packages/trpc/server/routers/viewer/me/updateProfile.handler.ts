@@ -5,6 +5,7 @@ import { checkUsername } from "@calcom/features/profile/lib/checkUsername";
 import { ScheduleRepository } from "@calcom/features/schedules/repositories/ScheduleRepository";
 import hasKeyInMetadata from "@calcom/lib/hasKeyInMetadata";
 import { HttpError } from "@calcom/lib/http-error";
+import { hubManagedSchedule } from "@calcom/lib/hubManagedSchedule";
 import logger from "@calcom/lib/logger";
 import { uploadAvatar } from "@calcom/lib/server/avatar";
 import { getTranslation } from "@calcom/i18n/server";
@@ -297,14 +298,17 @@ export const updateProfileHandler = async ({ ctx, input }: UpdateProfileOptions)
       });
     }
 
-    await prisma.schedule.updateMany({
-      where: {
-        id: defaultScheduleId,
-      },
-      data: {
-        timeZone: data.timeZone,
-      },
-    });
+    // remaxhub: the Hub sets a managed schedule's zone itself.
+    if (!hubManagedSchedule(defaultScheduleId)) {
+      await prisma.schedule.updateMany({
+        where: {
+          id: defaultScheduleId,
+        },
+        data: {
+          timeZone: data.timeZone,
+        },
+      });
+    }
   }
 
   // Notify stripe about the change

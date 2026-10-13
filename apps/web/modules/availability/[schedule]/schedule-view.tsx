@@ -14,6 +14,7 @@ import type { RouterOutputs } from "@calcom/trpc/react";
 import { trpc } from "@calcom/trpc/react";
 import useMeQuery from "@calcom/trpc/react/hooks/useMeQuery";
 import { showToast } from "@calcom/ui/components/toast";
+import WebShell from "@calcom/web/modules/shell/Shell";
 
 import { HubHours, hubManagedSchedule } from "../HubHours";
 
@@ -109,7 +110,14 @@ export const AvailabilitySettingsWebWrapper = ({
 
   // Hub-owned hours are read-only here. Keep this after every hook above.
   if (hubManagedSchedule(scheduleId)) {
-    return <HubHours hours={schedule.schedule} zone={schedule.timeZone} />;
+    return (
+      <WebShell
+        backPath="/availability"
+        title={schedule.name ? `${schedule.name} | ${t("availability")}` : t("availability")}
+        heading={schedule.name}>
+        <HubHours hours={schedule.schedule} zone={schedule.timeZone} />
+      </WebShell>
+    );
   }
 
   return (

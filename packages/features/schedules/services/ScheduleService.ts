@@ -2,6 +2,7 @@ import { getAvailabilityFromSchedule } from "@calcom/lib/availability";
 import { timeZoneSchema } from "@calcom/lib/dayjs/timeZone.schema";
 import { hasEditPermissionForUserID } from "@calcom/lib/hasEditPermissionForUser";
 import { HttpError } from "@calcom/lib/http-error";
+import { hubManagedSchedule } from "@calcom/lib/hubManagedSchedule";
 import { transformScheduleToAvailabilityForAtom } from "@calcom/lib/schedules/transformers/for-atom";
 import type { PrismaClient } from "@calcom/prisma";
 import { z } from "zod";
@@ -46,6 +47,12 @@ export class ScheduleService {
   constructor(private prisma: PrismaClient) {}
 
   async update({ input, user }: IUpdateScheduleOptions) {
+    // remaxhub: Hub-owned hours are changed in the Hub only (see deploy/remaxhub/RUNBOOK.md). The Hub itself
+    // writes through API v2, not this path. Also keep the default on a Hub-owned schedule.
+    if (hubManagedSchedule(input.scheduleId) || (input.isDefault && hubManagedSchedule(user.defaultScheduleId))) {
+      throw new HttpError({ statusCode: 403, message: "Hours are set in the Hub." });
+    }
+
     const availability = input.schedule
       ? getAvailabilityFromSchedule(input.schedule)
       : (input.dateOverrides || []).map((dateOverride) => ({

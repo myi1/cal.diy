@@ -45,6 +45,7 @@ export function ScheduleListItem({
   isDeletable,
   duplicateFunction,
   redirectUrl,
+  canSetDefault = true,
 }: {
   schedule: Schedule;
   deleteFunction: ({ scheduleId }: { scheduleId: number }) => void;
@@ -57,6 +58,8 @@ export function ScheduleListItem({
   updateDefault: ({ scheduleId, isDefault }: { scheduleId: number; isDefault: boolean }) => void;
   duplicateFunction: ({ scheduleId }: { scheduleId: number }) => void;
   redirectUrl: string;
+  /** remaxhub: false hides "Set as default" (Hub-owned hours keep the default schedule). */
+  canSetDefault?: boolean;
 }) {
   const { t, i18n } = useLocale();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -111,7 +114,7 @@ export function ScheduleListItem({
             />
           </DropdownMenuTrigger>
           <DropdownMenuContent>
-            {!schedule.isDefault && (
+            {!schedule.isDefault && canSetDefault && (
               <DropdownMenuItem className="min-w-40 focus:ring-muted">
                 <DropdownItem
                   type="button"

@@ -29,10 +29,13 @@ echo "$(date -u +%FT%TZ) building $TAG ($(git log -1 --format=%s))" | tee -a "$L
 [ "${NO_PUSH:-}" = 1 ] || gh auth token | docker login ghcr.io -u "$OWNER" --password-stdin >/dev/null
 MOVE_TAG=""; [ "$(git rev-parse origin/remaxhub)" = "$SHA" ] && MOVE_TAG=1
 
-# Remember the ids of the last pushed web build: changing them must rebuild web even when no file changed.
-MANAGED_IDS="${HUB_MANAGED_SCHEDULE_IDS:-}"
-MANAGED_FILE=/root/caldiy-last-managed-ids
+# Hub-owned schedule ids baked into the web image. Unset HUB_MANAGED_SCHEDULE_IDS keeps the last pushed list
+# (a routine build must not silently manage nothing); set it to the empty string to turn the feature off.
+# A changed list rebuilds web even when no file changed.
+MANAGED_FILE=${MANAGED_FILE:-/root/caldiy-last-managed-ids}
 LAST_MANAGED=$(cat "$MANAGED_FILE" 2>/dev/null || true)
+MANAGED_IDS="${HUB_MANAGED_SCHEDULE_IDS-$LAST_MANAGED}"
+echo "$(date -u +%FT%TZ) managed schedule ids for this build: '${MANAGED_IDS}' (last pushed: '${LAST_MANAGED}')" | tee -a "$LOG"
 WEB_ARGS=(
   --build-arg NEXT_PUBLIC_WEBAPP_URL=https://book.remaxhub.ae
   --build-arg NEXT_PUBLIC_API_V2_URL=https://book-api.remaxhub.ae/api/v2
